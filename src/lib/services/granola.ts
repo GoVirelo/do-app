@@ -9,12 +9,16 @@ export interface GranolaNote {
   created_at?: string;
   createdAt?: string;
   summary?: string;
+  summary_text?: string;
+  summary_markdown?: string;
   transcript?: { speaker?: string; text: string }[] | string;
   owner?: { name: string; email: string };
   attendees?: { name: string; email: string }[];
 }
 
 export function getNoteText(note: GranolaNote): string {
+  if (note.summary_text) return note.summary_text;
+  if (note.summary_markdown) return note.summary_markdown;
   if (note.summary) return note.summary;
   if (!note.transcript) return "";
   if (typeof note.transcript === "string") return note.transcript;
