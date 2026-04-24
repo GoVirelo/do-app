@@ -1,0 +1,151 @@
+import { auth } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { fetchUnreadEmails, fetchTodayEvents } from "@/lib/services/outlook";
+import { fetchMentions } from "@/lib/services/slack";
+import { generateDraftReply } from "@/lib/services/claude";
+import { NextResponse } from "next/server";
+
+// POST /api/sync — pull latest from connected integrations
+export async function POST() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const userId = session.user.id;
+  const results: Record<string, { count: number; error?: string }> = {};
+
+  // Sync Outlook emails
+  const outlookIntegration = await prisma.integration.findUnique({
+    where: { userId_provider: { userId, provider: "outlook" } },
+  });
+
+  if (outlookIntegration) {
+    try {
+      const emails = await fetchUnreadEmails(userId);
+      let created = 0;
+
+      for (const email of emails) {
+        const exists = await prisma.task.findFirst({
+          where: { userId, sourceItemId: email.id },
+        });
+        if (exists) continue;
+
+        const task = await prisma.task.create({
+          data: {
+            userId,
+            title: email.subject,
+            source: "outlook",
+            sourceRef: email.webLink,
+            sourceItemId: email.id,
+            bucket: "inbox",
+            priority: "medium",
+          },
+        });
+
+        // Generate AI draft reply
+        try {
+          const draft = await generateDraftReply(
+            email.subject,
+            email.preview,
+            "email",
+            { email: session.user.email ?? undefined }
+          );
+          await prisma.aIDraft.create({
+            data: { taskId: task.id, body: draft.body, channel: "email" },
+          });
+        } catch {
+          // Draft generation is best-effort
+        }
+
+        created++;
+      }
+
+      await prisma.syncLog.create({
+        data: { userId, provider: "outlook", status: "success", itemCount: created },
+      });
+      results.outlook = { count: created };
+    } catch (err: any) {
+      await prisma.syncLog.create({
+        data: { userId, provider: "outlook", status: "error", error: err.message },
+      });
+      results.outlook = { count: 0, error: err.message };
+    }
+  }
+
+  // Sync Slack mentions
+  const slackIntegration = await prisma.integration.findUnique({
+    where: { userId_provider: { userId, provider: "slack" } },
+  });
+
+  if (slackIntegration) {
+    try {
+      const mentions = await fetchMentions(userId);
+      let created = 0;
+
+      for (const msg of mentions) {
+        const exists = await prisma.task.findFirst({
+          where: { userId, sourceItemId: msg.id },
+        });
+        if (exists) continue;
+
+        const task = await prisma.task.create({
+          data: {
+            userId,
+            title: msg.text.slice(0, 200),
+            source: "slack",
+            sourceRef: `https://slack.com/channels/${msg.channelId}/p${msg.ts.replace(".", "")}`,
+            sourceItemId: msg.id,
+            bucket: "inbox",
+            priority: "medium",
+          },
+        });
+
+        // Generate AI draft reply
+        try {
+          const draft = await generateDraftReply(
+            msg.text,
+            `Channel: #${msg.channelName}`,
+            "slack",
+            { email: session.user.email ?? undefined }
+          );
+          await prisma.aIDraft.create({
+            data: {
+              taskId: task.id,
+              body: draft.body,
+              channel: `#${msg.channelName}`,
+            },
+          });
+        } catch {
+          // Best-effort
+        }
+
+        created++;
+      }
+
+      await prisma.syncLog.create({
+        data: { userId, provider: "slack", status: "success", itemCount: created },
+      });
+      results.slack = { count: created };
+    } catch (err: any) {
+      await prisma.syncLog.create({
+        data: { userId, provider: "slack", status: "error", error: err.message },
+      });
+      results.slack = { count: 0, error: err.message };
+    }
+  }
+
+  return NextResponse.json({ ok: true, results });
+}
+
+// GET /api/sync — get last sync status per provider
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const logs = await prisma.syncLog.findMany({
+    where: { userId: session.user.id },
+    orderBy: { createdAt: "desc" },
+    take: 10,
+  });
+
+  return NextResponse.json(logs);
+}

@@ -1,0 +1,38 @@
+"use client";
+
+import { useState } from "react";
+import { tokens } from "@/lib/tokens";
+
+const FILTERS = [
+  { label: "All", count: 23 },
+  { label: "Hot", count: 2 },
+  { label: "Today", count: 6 },
+  { label: "Meetings", count: 4 },
+  { label: "Personal", count: 5 },
+];
+
+export function FilterPills() {
+  const [active, setActive] = useState("All");
+  return (
+    <div className="flex gap-1.5 px-5 pb-3.5 overflow-x-auto flex-shrink-0" style={{ scrollbarWidth: "none" }}>
+      {FILTERS.map(({ label, count }) => {
+        const on = active === label;
+        return (
+          <button
+            key={label}
+            onClick={() => setActive(label)}
+            className="h-[30px] px-3 flex items-center gap-1.5 rounded-[15px] text-[12px] font-medium flex-shrink-0 border transition-colors"
+            style={{
+              background: on ? tokens.bg3 : tokens.bg2,
+              color: on ? tokens.fg0 : tokens.fg2,
+              borderColor: on ? tokens.line2 : tokens.line,
+            }}
+          >
+            {label}
+            <span className="font-mono-do text-[10.5px]" style={{ color: tokens.fg3 }}>{count}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}

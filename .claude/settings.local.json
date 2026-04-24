@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/richardd/Downloads/**)",
+      "Bash(unzip -o \"To do.zip\" -d \"to-do-extracted\")",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git)",
+      "Bash(npx create-next-app@latest . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git --yes)",
+      "Bash(npm init *)",
+      "Bash(npm pkg *)",
+      "Bash(npm install *)",
+      "Bash(rm -rf \"/Users/richardd/to do app /node_modules\" \"/Users/richardd/to do app /package.json\" \"/Users/richardd/to do app /package-lock.json\")",
+      "Bash(mkdir -p /tmp/do-app)",
+      "Read(//tmp/**)",
+      "Bash(npx create-next-app@14 . --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --no-git --yes)",
+      "Bash(mkdir -p \"/Users/richardd/to do app /design-ref\")",
+      "Bash(cp /Users/richardd/Downloads/to-do-extracted/design_handoff_do_app/*.jsx /Users/richardd/Downloads/to-do-extracted/design_handoff_do_app/*.html /Users/richardd/Downloads/to-do-extracted/design_handoff_do_app/README.md \"/Users/richardd/to do app /design-ref/\")",
+      "Bash(npx tsc *)",
+      "Bash(node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(npm run *)",
+      "Bash(echo \"PID: $!\")",
+      "Bash(node node_modules/next/dist/bin/next dev)",
+      "Read(//private/tmp/**)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(node node_modules/prisma/build/index.js init --datasource-provider postgresql)",
+      "Bash(node -e \"const o = require\\('otplib'\\); console.log\\(Object.keys\\(o\\)\\)\")",
+      "Bash(node node_modules/prisma/build/index.js generate)",
+      "Bash(node -e \"const {PrismaClient} = require\\('@prisma/client'\\); console.log\\(typeof PrismaClient\\)\")",
+      "Bash(node node_modules/prisma/build/index.js --version)",
+      "Bash(node -e \"const {TOTP, verify, generate} = require\\('otplib'\\); const t = new TOTP\\(\\); console.log\\(Object.getOwnPropertyNames\\(Object.getPrototypeOf\\(t\\)\\)\\)\")",
+      "Bash(node -e ' *)",
+      "WebSearch"
+    ]
+  }
+}
