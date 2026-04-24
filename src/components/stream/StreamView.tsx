@@ -89,8 +89,15 @@ export function StreamView({ onViewChange }: Props) {
             </div>
           </div>
 
-          {/* Meeting cards — one per meeting with tasks */}
-          {meetings.filter((m) => m.tasks.length > 0).map((meeting) => {
+          {/* Meeting cards — hide when all tasks done */}
+          {meetings.filter((m) => {
+            if (m.tasks.length === 0) return false;
+            // Check current status from live tasks state; fall back to DB state
+            return m.tasks.some((t) => {
+              const live = tasks.find((ut) => ut.id === t.id);
+              return (live?.status ?? t.status) !== "done";
+            });
+          }).map((meeting) => {
             const startTime = new Date(meeting.startAt).toLocaleTimeString("en-AU", {
               hour: "2-digit", minute: "2-digit",
             });
@@ -150,21 +157,33 @@ export function StreamView({ onViewChange }: Props) {
                     </div>
 
                     {meeting.tasks.map((t) => {
-                      const uiTask = tasks.find((ut) => ut.id === t.id);
-                      if (!uiTask) return (
-                        <div key={t.id} className="flex gap-2.5 py-2 items-center">
-                          <div className="w-3 h-3 rounded border border-line flex-shrink-0" />
-                          <span className="text-[13px] text-fg-0">{t.title}</span>
-                        </div>
-                      );
+                      const live = tasks.find((ut) => ut.id === t.id);
+                      const isDone = (live?.status ?? t.status) === "done";
                       return (
-                        <TaskRow
+                        <div
                           key={t.id}
-                          task={uiTask}
-                          onToggle={() => toggleTask(t.id)}
-                          onSkipDraft={() => skipDraft(t.id)}
-                          onSendDraft={() => sendDraft(t.id)}
-                        />
+                          className="flex items-center gap-2.5 py-1.5 group transition-all"
+                          style={{ opacity: isDone ? 0.4 : 1 }}
+                        >
+                          <button
+                            onClick={() => toggleTask(t.id)}
+                            className="flex-shrink-0 w-3.5 h-3.5 rounded border transition-colors"
+                            style={{
+                              borderColor: isDone ? tokens.bronze : tokens.line,
+                              background: isDone ? tokens.bronze : "transparent",
+                            }}
+                          />
+                          <span
+                            className="transition-all"
+                            style={{
+                              fontSize: isDone ? "11.5px" : "13px",
+                              textDecoration: isDone ? "line-through" : "none",
+                              color: isDone ? tokens.fg2 : tokens.fg0,
+                            }}
+                          >
+                            {t.title}
+                          </span>
+                        </div>
                       );
                     })}
 
