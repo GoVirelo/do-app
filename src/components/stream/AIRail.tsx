@@ -1,52 +1,78 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Sparkle } from "@/components/ui/Sparkle";
 import { Button } from "@/components/ui/Button";
 import { tokens } from "@/lib/tokens";
-import { useAppTasks } from "@/hooks/useAppTasks";
-import type { AISuggestion } from "@/types";
 
-function AICard({ suggestion, onDismiss }: { suggestion: AISuggestion; onDismiss: () => void }) {
-  return (
-    <div
-      className="p-3 rounded-r2"
-      style={{
-        background: tokens.bg2,
-        border: suggestion.dashed
-          ? `1px dashed ${tokens.bronzeLine}`
-          : `1px solid ${tokens.line}`,
-      }}
-    >
-      <div className="flex items-center gap-1.5 mb-1.5">
-        <Sparkle size={10} />
-        <span
-          className="font-mono-do text-[10px] font-semibold uppercase tracking-[0.06em]"
-          style={{ color: tokens.bronze }}
-        >
-          {suggestion.label}
-        </span>
-      </div>
-      <p className="text-[12.5px] text-fg-1 leading-relaxed mb-2.5">{suggestion.body}</p>
-      <div className="flex gap-1.5">
-        {suggestion.actions.map((action, i) => (
-          <Button
-            key={i}
-            variant={action.variant === "secondary" ? "secondary" : action.variant}
-            size="sm"
-            onClick={action.variant === "ghost" ? onDismiss : undefined}
-          >
-            {action.label}
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
+interface Message {
+  role: "user" | "assistant";
+  content: string;
 }
 
 export function AIRail() {
-  const { suggestions, dismissSuggestion } = useAppTasks();
+  const qc = useQueryClient();
+  const [collapsed, setCollapsed] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  async function send() {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    const next: Message[] = [...messages, { role: "user", content: text }];
+    setMessages(next);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: next.map((m) => ({ role: m.role, content: m.content })),
+        }),
+      });
+      const data = await res.json();
+      setMessages([...next, { role: "assistant", content: data.reply ?? "No response." }]);
+      // Refresh tasks/meetings in case Claude made changes
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+    } catch {
+      setMessages([...next, { role: "assistant", content: "Something went wrong." }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (collapsed) {
+    return (
+      <div
+        className="flex flex-col items-center py-3.5 gap-3 flex-shrink-0 cursor-pointer"
+        style={{ width: 44, background: tokens.bg1, borderLeft: `1px solid ${tokens.line}` }}
+        onClick={() => setCollapsed(false)}
+        title="Expand assistant"
+      >
+        <div
+          className="w-[26px] h-[26px] rounded-[6px] flex items-center justify-center"
+          style={{ background: `linear-gradient(135deg, ${tokens.bronze}, ${tokens.oxblood})` }}
+        >
+          <Sparkle size={12} color="#1a1108" />
+        </div>
+        <span
+          className="font-mono-do text-[9px] tracking-[0.1em] uppercase"
+          style={{ color: tokens.fg3, writingMode: "vertical-rl", transform: "rotate(180deg)" }}
+        >
+          Assistant
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -55,7 +81,7 @@ export function AIRail() {
     >
       {/* Header */}
       <div
-        className="px-4 py-3.5 flex items-center gap-2.5"
+        className="px-4 py-3.5 flex items-center gap-2.5 flex-shrink-0"
         style={{ borderBottom: `1px solid ${tokens.line}` }}
       >
         <div
@@ -64,45 +90,95 @@ export function AIRail() {
         >
           <Sparkle size={12} color="#1a1108" />
         </div>
-        <div>
+        <div className="flex-1">
           <div className="text-[13px] font-semibold">Assistant</div>
-          <div className="font-mono-do text-[10px] text-fg-3 tracking-[0.04em]">
-            {suggestions.length} SUGGESTIONS · LIVE
-          </div>
+          <div className="font-mono-do text-[10px] text-fg-3 tracking-[0.04em]">CLAUDE · LIVE</div>
         </div>
+        <button
+          onClick={() => setCollapsed(true)}
+          className="text-fg-3 hover:text-fg-1 transition-colors px-1"
+          title="Collapse"
+        >
+          ›
+        </button>
       </div>
 
-      {/* Cards */}
+      {/* Messages */}
       <div className="flex-1 p-3.5 flex flex-col gap-3 overflow-auto">
-        {suggestions.map((s) => (
-          <AICard
-            key={s.id}
-            suggestion={s}
-            onDismiss={() => dismissSuggestion(s.id)}
-          />
-        ))}
-        {suggestions.length === 0 && (
-          <p className="text-[12px] text-fg-3 text-center mt-8">No suggestions right now.</p>
+        {messages.length === 0 && (
+          <div className="mt-6 flex flex-col gap-2">
+            <p className="text-[12px] text-fg-3 text-center">Ask me anything about your tasks.</p>
+            <div className="flex flex-col gap-1.5 mt-2">
+              {[
+                "What's overdue?",
+                "Restore my last done tasks",
+                "Summarise my Granola actions",
+                "What should I focus on today?",
+              ].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => { setInput(s); }}
+                  className="text-left text-[11.5px] px-2.5 py-1.5 rounded-r2 border transition-colors"
+                  style={{ borderColor: tokens.line, color: tokens.fg2, background: tokens.bg2 }}
+                  onMouseEnter={e => (e.currentTarget.style.color = tokens.fg0)}
+                  onMouseLeave={e => (e.currentTarget.style.color = tokens.fg2)}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
+          </div>
         )}
+
+        {messages.map((m, i) => (
+          <div key={i} className={m.role === "user" ? "flex justify-end" : "flex justify-start"}>
+            <div
+              className="max-w-[240px] px-3 py-2 rounded-r2 text-[12.5px] leading-relaxed whitespace-pre-wrap"
+              style={
+                m.role === "user"
+                  ? { background: tokens.bg4, color: tokens.fg0, border: `1px solid ${tokens.line2}` }
+                  : { background: tokens.bg2, color: tokens.fg1, border: `1px solid ${tokens.line}` }
+              }
+            >
+              {m.role === "assistant" && (
+                <div className="flex items-center gap-1 mb-1.5">
+                  <Sparkle size={9} />
+                  <span className="font-mono-do text-[9px] tracking-[0.06em] uppercase" style={{ color: tokens.bronze }}>
+                    Assistant
+                  </span>
+                </div>
+              )}
+              {m.content}
+            </div>
+          </div>
+        ))}
+
+        {loading && (
+          <div className="flex justify-start">
+            <div
+              className="px-3 py-2 rounded-r2 text-[12px]"
+              style={{ background: tokens.bg2, border: `1px solid ${tokens.line}`, color: tokens.fg3 }}
+            >
+              <span className="animate-pulse">Thinking…</span>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
       </div>
 
       {/* Composer */}
-      <div
-        className="p-3"
-        style={{ borderTop: `1px solid ${tokens.line}`, background: tokens.bg2 }}
-      >
+      <div className="p-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.line}`, background: tokens.bg2 }}>
         <div className="flex gap-2 items-center">
           <input
             className="flex-1 h-[30px] px-2.5 text-[12px] text-fg-0 rounded-r2 outline-none"
-            style={{
-              background: tokens.bg4,
-              border: `1px solid ${tokens.line2}`,
-            }}
+            style={{ background: tokens.bg4, border: `1px solid ${tokens.line2}` }}
             placeholder="Ask your assistant…"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            disabled={loading}
           />
-          <Button variant="primary" size="sm" className="px-2.5">↵</Button>
+          <Button variant="primary" size="sm" className="px-2.5" onClick={send} disabled={loading}>↵</Button>
         </div>
       </div>
     </div>
