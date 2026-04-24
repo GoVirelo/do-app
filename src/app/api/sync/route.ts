@@ -1,8 +1,9 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { fetchUnreadEmails, fetchTodayEvents } from "@/lib/services/outlook";
+import { fetchUnreadEmails } from "@/lib/services/outlook";
 import { fetchMentions } from "@/lib/services/slack";
-import { generateDraftReply } from "@/lib/services/claude";
+import { fetchRecentNotes, getNoteText, getNoteDate } from "@/lib/services/granola";
+import { generateDraftReply, extractActionsFromNotes } from "@/lib/services/claude";
 import { NextResponse } from "next/server";
 
 // POST /api/sync — pull latest from connected integrations
@@ -130,6 +131,56 @@ export async function POST() {
         data: { userId, provider: "slack", status: "error", error: err.message },
       });
       results.slack = { count: 0, error: err.message };
+    }
+  }
+
+  // Sync Granola meeting notes
+  if (process.env.GRANOLA_API_KEY) {
+    try {
+      const since = new Date(Date.now() - 25 * 60 * 60 * 1000); // last 25 hours
+      const notes = await fetchRecentNotes(since);
+      let created = 0;
+
+      for (const note of notes) {
+        const exists = await prisma.meeting.findUnique({ where: { granolaId: note.id } });
+        if (exists) continue;
+
+        const allAttendees = [...(note.attendees ?? []), ...(note.owner ? [note.owner] : [])];
+        const attendeeNames = allAttendees.map(a => a.name);
+        const content = getNoteText(note);
+        const actions = content ? await extractActionsFromNotes(content, note.title, attendeeNames) : [];
+
+        const meeting = await prisma.meeting.create({
+          data: {
+            userId,
+            granolaId: note.id,
+            title: note.title,
+            startAt: new Date(getNoteDate(note)),
+            attendees: allAttendees as any,
+            rawNotes: content,
+          },
+        });
+
+        for (const action of actions) {
+          await prisma.task.create({
+            data: {
+              userId,
+              title: action.title,
+              source: "granola",
+              sourceRef: note.id,
+              bucket: "inbox",
+              priority: action.priority,
+              meetingId: meeting.id,
+              dueAt: action.dueDate ? new Date(action.dueDate) : undefined,
+            },
+          });
+          created++;
+        }
+      }
+
+      results.granola = { count: created };
+    } catch (err: any) {
+      results.granola = { count: 0, error: err.message };
     }
   }
 
