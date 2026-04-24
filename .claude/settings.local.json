@@ -28,7 +28,9 @@
       "Bash(node node_modules/prisma/build/index.js --version)",
       "Bash(node -e \"const {TOTP, verify, generate} = require\\('otplib'\\); const t = new TOTP\\(\\); console.log\\(Object.getOwnPropertyNames\\(Object.getPrototypeOf\\(t\\)\\)\\)\")",
       "Bash(node -e ' *)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(gh auth *)",
+      "Bash(openssl rand *)"
     ]
   }
 }
