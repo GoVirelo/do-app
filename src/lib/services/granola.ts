@@ -38,7 +38,24 @@ export async function fetchRecentNotes(since?: Date): Promise<GranolaNote[]> {
 
   if (!res.ok) throw new Error(`Granola API error: ${res.status} ${await res.text()}`);
   const data = await res.json();
-  return (data.notes ?? data) as GranolaNote[];
+  const notes = (data.notes ?? data) as GranolaNote[];
+
+  // Fetch full note details to get summary/transcript
+  const full = await Promise.all(
+    notes.map(async (note) => {
+      try {
+        const r = await fetch(`${GRANOLA_BASE}/notes/${note.id}`, {
+          headers: { Authorization: `Bearer ${apiKey}` },
+        });
+        if (!r.ok) return note;
+        return await r.json() as GranolaNote;
+      } catch {
+        return note;
+      }
+    })
+  );
+
+  return full;
 }
 
 // Granola sends webhooks; this service processes them.
