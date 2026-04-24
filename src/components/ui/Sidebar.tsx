@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Icons } from "./Icons";
 import { sourceTokens } from "@/lib/tokens";
@@ -79,6 +80,7 @@ type Props = {
 };
 
 export function Sidebar({ activeItem = "Stream" }: Props) {
+  const router = useRouter();
   return (
     <div className="w-[200px] bg-bg-1 border-r border-line px-2.5 py-3.5 flex flex-col gap-0.5 overflow-auto flex-shrink-0">
       <SidebarItem icon={<Icons.flash />} label="Stream" count={23} active={activeItem === "Stream"} />
@@ -98,9 +100,15 @@ export function Sidebar({ activeItem = "Stream" }: Props) {
 
       <div className="flex-1" />
 
-      <button className="flex items-center gap-2 px-2 py-2.5 text-[11.5px] text-fg-2 hover:text-fg-1 transition-colors">
+      <button
+        onClick={() => router.push("/settings")}
+        className={cn(
+          "flex items-center gap-2 px-2 py-2.5 text-[11.5px] transition-colors",
+          activeItem === "Settings" ? "text-bronze" : "text-fg-2 hover:text-fg-1"
+        )}
+      >
         <Icons.settings />
-        <span>Connections</span>
+        <span>Settings</span>
       </button>
     </div>
   );

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { QueryProvider } from "@/components/providers/QueryProvider";
+import { SessionProvider } from "@/components/providers/SessionProvider";
 
 export const metadata: Metadata = {
   title: "do. — Unified Task Command Centre",
@@ -15,7 +16,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="h-full antialiased">
-        <QueryProvider>{children}</QueryProvider>
+        <SessionProvider><QueryProvider>{children}</QueryProvider></SessionProvider>
       </body>
     </html>
   );

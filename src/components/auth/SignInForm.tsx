@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Button } from "@/components/ui/Button";
+import { signIn } from "next-auth/react";
 import { tokens } from "@/lib/tokens";
 
 type Props = { onSuccess: (email: string, requiresTOTP: boolean) => void };
@@ -19,7 +19,6 @@ function OAuthButton({ icon, label, onClick }: { icon: React.ReactNode; label: s
   );
 }
 
-// Microsoft icon
 const MicrosoftIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16">
     <rect x="0" y="0" width="7.5" height="7.5" fill="#f25022"/>
@@ -29,7 +28,6 @@ const MicrosoftIcon = () => (
   </svg>
 );
 
-// Slack icon
 const SlackIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
     <path d="M3.6 10.4a1.6 1.6 0 1 1-1.6-1.6H3.6v1.6z" fill="#e01e5a"/>
@@ -43,7 +41,6 @@ const SlackIcon = () => (
   </svg>
 );
 
-// Granola icon (sparkle-ish amber dot)
 const GranolaIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="#d4a55a">
     <path d="M8 0 L9.4 6.6 L16 8 L9.4 9.4 L8 16 L6.6 9.4 L0 8 L6.6 6.6 Z"/>
@@ -61,15 +58,40 @@ export function SignInForm({ onSuccess }: Props) {
     setError("");
     if (!email || !password) { setError("Please fill in all fields."); return; }
     setLoading(true);
+
     try {
-      const res = await fetch("/api/auth/check-totp", {
+      // Check if TOTP is required first
+      const check = await fetch("/api/auth/check-totp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
-      const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Invalid email or password."); setLoading(false); return; }
-      onSuccess(email, data.requiresTOTP);
+      const data = await check.json();
+
+      if (!check.ok) {
+        setError(data.error ?? "Invalid email or password.");
+        setLoading(false);
+        return;
+      }
+
+      if (data.requiresTOTP) {
+        // Has 2FA — hand off to 2FA screen, sign in will complete there
+        onSuccess(email, true);
+        return;
+      }
+
+      // No 2FA — sign in via NextAuth client-side to set session cookie
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        setError("Invalid email or password.");
+      } else {
+        onSuccess(email, false);
+      }
     } catch {
       setError("Something went wrong. Please try again.");
     }
@@ -78,7 +100,6 @@ export function SignInForm({ onSuccess }: Props) {
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {/* Email */}
       <div className="flex flex-col gap-1.5">
         <label className="text-[12px] font-medium text-fg-2">Email</label>
         <input
@@ -88,16 +109,12 @@ export function SignInForm({ onSuccess }: Props) {
           value={email}
           onChange={e => setEmail(e.target.value)}
           className="h-10 px-3 rounded-r2 text-[13px] text-fg-0 outline-none transition-colors"
-          style={{
-            background: tokens.bg4,
-            border: `1px solid ${tokens.line2}`,
-          }}
+          style={{ background: tokens.bg4, border: `1px solid ${tokens.line2}` }}
           onFocus={e => (e.target.style.borderColor = tokens.bronze)}
           onBlur={e => (e.target.style.borderColor = tokens.line2)}
         />
       </div>
 
-      {/* Password */}
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
           <label className="text-[12px] font-medium text-fg-2">Password</label>
@@ -112,18 +129,13 @@ export function SignInForm({ onSuccess }: Props) {
           value={password}
           onChange={e => setPassword(e.target.value)}
           className="h-10 px-3 rounded-r2 text-[13px] text-fg-0 outline-none transition-colors"
-          style={{
-            background: tokens.bg4,
-            border: `1px solid ${tokens.line2}`,
-          }}
+          style={{ background: tokens.bg4, border: `1px solid ${tokens.line2}` }}
           onFocus={e => (e.target.style.borderColor = tokens.bronze)}
           onBlur={e => (e.target.style.borderColor = tokens.line2)}
         />
       </div>
 
-      {error && (
-        <p className="text-[12px]" style={{ color: tokens.oxblood }}>{error}</p>
-      )}
+      {error && <p className="text-[12px]" style={{ color: tokens.oxblood }}>{error}</p>}
 
       <button
         type="submit"
@@ -138,18 +150,16 @@ export function SignInForm({ onSuccess }: Props) {
         {loading ? "Signing in…" : "Sign in"}
       </button>
 
-      {/* Divider */}
       <div className="flex items-center gap-3">
         <div className="flex-1 h-px" style={{ background: tokens.line }} />
         <span className="text-[11px] text-fg-3">or continue with</span>
         <div className="flex-1 h-px" style={{ background: tokens.line }} />
       </div>
 
-      {/* OAuth */}
       <div className="flex flex-col gap-2">
-        <OAuthButton icon={<MicrosoftIcon />} label="Continue with Microsoft" />
-        <OAuthButton icon={<SlackIcon />}     label="Continue with Slack" />
-        <OAuthButton icon={<GranolaIcon />}   label="Continue with Granola" />
+        <OAuthButton icon={<MicrosoftIcon />} label="Continue with Microsoft" onClick={() => signIn("microsoft-entra-id")} />
+        <OAuthButton icon={<SlackIcon />} label="Continue with Slack" onClick={() => signIn("slack")} />
+        <OAuthButton icon={<GranolaIcon />} label="Continue with Granola" />
       </div>
     </form>
   );
