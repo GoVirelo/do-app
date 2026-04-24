@@ -143,6 +143,7 @@ export async function POST() {
 
       for (const note of notes) {
         const exists = await prisma.meeting.findUnique({ where: { granolaId: note.id } });
+        console.log("Meeting exists check:", note.id, !!exists);
         if (exists) continue;
 
         const allAttendees = [...(note.attendees ?? []), ...(note.owner ? [note.owner] : [])];
