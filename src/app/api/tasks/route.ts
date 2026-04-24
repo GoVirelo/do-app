@@ -7,6 +7,8 @@ const CreateTaskSchema = z.object({
   title: z.string().min(1).max(500),
   priority: z.enum(["hot", "high", "medium", "low"]).default("medium"),
   bucket: z.enum(["inbox", "today", "upcoming", "waiting", "done"]).default("inbox"),
+  source: z.string().optional(),
+  meetingId: z.string().optional(),
   dueAt: z.string().datetime().optional(),
   scheduledStart: z.string().datetime().optional(),
   scheduledEnd: z.string().datetime().optional(),
@@ -47,14 +49,16 @@ export async function POST(req: Request) {
   const parsed = CreateTaskSchema.safeParse(body);
   if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 });
 
+  const { source, meetingId, dueAt, scheduledStart, scheduledEnd, ...rest } = parsed.data;
   const task = await prisma.task.create({
     data: {
-      ...parsed.data,
+      ...rest,
       userId: session.user.id,
-      source: "manual",
-      dueAt: parsed.data.dueAt ? new Date(parsed.data.dueAt) : undefined,
-      scheduledStart: parsed.data.scheduledStart ? new Date(parsed.data.scheduledStart) : undefined,
-      scheduledEnd: parsed.data.scheduledEnd ? new Date(parsed.data.scheduledEnd) : undefined,
+      source: source ?? "manual",
+      meetingId: meetingId ?? undefined,
+      dueAt: dueAt ? new Date(dueAt) : undefined,
+      scheduledStart: scheduledStart ? new Date(scheduledStart) : undefined,
+      scheduledEnd: scheduledEnd ? new Date(scheduledEnd) : undefined,
     },
     include: { aiDraft: true },
   });

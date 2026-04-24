@@ -1,7 +1,9 @@
 "use client";
 
+import { useState, useRef } from "react";
 import { useAppTasks } from "@/hooks/useAppTasks";
-import { useMeetings } from "@/hooks/useTasks";
+import { useMeetings, useCreateTask } from "@/hooks/useTasks";
+import { useQueryClient } from "@tanstack/react-query";
 import { TopBar } from "@/components/ui/TopBar";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { Button } from "@/components/ui/Button";
@@ -22,6 +24,25 @@ type Props = {
 export function StreamView({ onViewChange }: Props) {
   const { tasks, toggleTask, skipDraft, sendDraft, triggerSync, isSyncing } = useAppTasks();
   const { data: meetings = [] } = useMeetings();
+  const createTask = useCreateTask();
+  const qc = useQueryClient();
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [newTitle, setNewTitle] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  async function handleAddTask(meetingId: string) {
+    const title = newTitle.trim();
+    if (!title) { setAddingTo(null); return; }
+    await fetch("/api/tasks", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, source: "granola", bucket: "inbox", priority: "medium", meetingId }),
+    });
+    qc.invalidateQueries({ queryKey: ["tasks"] });
+    qc.invalidateQueries({ queryKey: ["meetings"] });
+    setNewTitle("");
+    setAddingTo(null);
+  }
 
   // Non-granola tasks go in the flat list
   const otherTasks = tasks.filter((t) => t.source !== "granola");
@@ -146,6 +167,39 @@ export function StreamView({ onViewChange }: Props) {
                         />
                       );
                     })}
+
+                    {/* Inline add task */}
+                    {addingTo === meeting.id ? (
+                      <div className="flex items-center gap-2 pt-2">
+                        <div className="w-3 h-3 rounded border border-line flex-shrink-0" />
+                        <input
+                          ref={inputRef}
+                          autoFocus
+                          value={newTitle}
+                          onChange={(e) => setNewTitle(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") handleAddTask(meeting.id);
+                            if (e.key === "Escape") { setAddingTo(null); setNewTitle(""); }
+                          }}
+                          onBlur={() => { if (!newTitle.trim()) { setAddingTo(null); } }}
+                          placeholder="Add a task…"
+                          className="flex-1 bg-transparent text-[13px] text-fg-0 outline-none placeholder:text-fg-3"
+                        />
+                        <button
+                          onClick={() => handleAddTask(meeting.id)}
+                          className="text-[11px] text-fg-2 hover:text-fg-0 px-2 py-0.5 rounded border border-line"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => { setAddingTo(meeting.id); setNewTitle(""); }}
+                        className="flex items-center gap-1.5 mt-2 text-[11.5px] text-fg-3 hover:text-fg-1 transition-colors"
+                      >
+                        <Icons.plus size={11} /> Add task
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
