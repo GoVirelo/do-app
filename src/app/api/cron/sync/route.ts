@@ -154,11 +154,11 @@ export async function GET(req: Request) {
 
           const meeting = await prisma.meeting.create({
             data: {
-              userId: user.id,
+              user: { connect: { id: user.id } },
               granolaId: note.id,
-              title: note.title,
+              title: note.title ?? "Untitled meeting",
               startAt: new Date(getNoteDate(note)),
-              attendees: (note.attendees ?? []) as any,
+              attendees: allAttendees as any,
               rawNotes: content,
             },
           });

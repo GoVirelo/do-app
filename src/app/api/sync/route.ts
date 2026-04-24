@@ -152,9 +152,9 @@ export async function POST() {
 
         const meeting = await prisma.meeting.create({
           data: {
-            userId,
+            user: { connect: { id: userId } },
             granolaId: note.id,
-            title: note.title,
+            title: note.title ?? "Untitled meeting",
             startAt: new Date(getNoteDate(note)),
             attendees: allAttendees as any,
             rawNotes: content,
