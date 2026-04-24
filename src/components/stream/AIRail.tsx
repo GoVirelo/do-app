@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Sparkle } from "@/components/ui/Sparkle";
 import { Button } from "@/components/ui/Button";
 import { tokens } from "@/lib/tokens";
-import { useTasksStore } from "@/store/tasks";
+import { useAppTasks } from "@/hooks/useAppTasks";
 import type { AISuggestion } from "@/types";
 
 function AICard({ suggestion, onDismiss }: { suggestion: AISuggestion; onDismiss: () => void }) {
@@ -45,7 +45,7 @@ function AICard({ suggestion, onDismiss }: { suggestion: AISuggestion; onDismiss
 }
 
 export function AIRail() {
-  const { suggestions, dismissSuggestion } = useTasksStore();
+  const { suggestions, dismissSuggestion } = useAppTasks();
   const [input, setInput] = useState("");
 
   return (

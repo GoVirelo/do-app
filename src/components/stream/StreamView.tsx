@@ -1,6 +1,6 @@
 "use client";
 
-import { useTasksStore } from "@/store/tasks";
+import { useAppTasks } from "@/hooks/useAppTasks";
 import { TopBar } from "@/components/ui/TopBar";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { Button } from "@/components/ui/Button";
@@ -17,7 +17,7 @@ type Props = {
 };
 
 export function StreamView({ onViewChange }: Props) {
-  const { tasks, meeting, toggleTask, skipDraft, sendDraft } = useTasksStore();
+  const { tasks, meeting, toggleTask, skipDraft, sendDraft, triggerSync, isSyncing } = useAppTasks();
 
   const byBucket = (bucket: Task["bucket"]) =>
     tasks.filter((t) => t.bucket === bucket);
@@ -36,7 +36,9 @@ export function StreamView({ onViewChange }: Props) {
         onView={onViewChange}
         right={
           <>
-            <Button variant="ghost" size="sm">Filter</Button>
+            <Button variant="ghost" size="sm" onClick={triggerSync} disabled={isSyncing}>
+              {isSyncing ? "Syncing…" : "Sync"}
+            </Button>
             <Button variant="primary" size="sm">
               <Icons.plus size={12} /> New task
             </Button>

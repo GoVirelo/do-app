@@ -1,6 +1,6 @@
 "use client";
 
-import { useTasksStore } from "@/store/tasks";
+import { useAppTasks } from "@/hooks/useAppTasks";
 import { TopBar } from "@/components/ui/TopBar";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { Button } from "@/components/ui/Button";
@@ -15,7 +15,7 @@ type Props = {
 };
 
 export function BoardView({ onViewChange }: Props) {
-  const { tasks, toggleTask } = useTasksStore();
+  const { tasks, toggleTask } = useAppTasks();
 
   const byBucket = (bucket: Task["bucket"]) => tasks.filter((t) => t.bucket === bucket);
   const done = tasks.filter((t) => t.status === "done");

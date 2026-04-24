@@ -1,0 +1,87 @@
+"use client";
+
+import { useTasks, useUpdateTask, useUpdateDraft, useGenerateDraft, useSync, type Task as ApiTask } from "./useTasks";
+import { useTasksStore } from "@/store/tasks";
+import type { Task } from "@/types";
+
+// Converts API task shape to the legacy Task type used by UI components
+function apiToTask(t: ApiTask): Task {
+  return {
+    id: t.id,
+    title: t.title,
+    status: t.status as Task["status"],
+    priority: (t.priority === "hot" ? "hot" : t.priority === "high" ? "high" : t.priority === "low" ? "low" : "normal") as Task["priority"],
+    bucket: (t.bucket === "inbox" ? "today" : t.bucket === "today" ? "today" : t.bucket === "upcoming" ? "this_week" : t.bucket === "waiting" ? "this_week" : "today") as Task["bucket"],
+    source: t.source as Task["source"],
+    sourceRef: t.sourceRef ? { slack: { channel: "", ts: "" } } : undefined,
+    createdAt: new Date(t.createdAt),
+    dueAt: t.dueAt ? new Date(t.dueAt) : undefined,
+    aiDraft: t.aiDraft ? {
+      body: t.aiDraft.body,
+      channel: t.aiDraft.channel ?? "#general",
+      state: t.aiDraft.status as "proposed" | "sent" | "skipped",
+    } : undefined,
+  };
+}
+
+export function useAppTasks() {
+  const { data: apiTasks, isLoading, error } = useTasks();
+  const store = useTasksStore();
+  const updateTask = useUpdateTask();
+  const updateDraft = useUpdateDraft();
+  const generateDraft = useGenerateDraft();
+  const sync = useSync();
+
+  // Use real API data when available, fall back to mock store data
+  const tasks: Task[] = (apiTasks && apiTasks.length > 0)
+    ? apiTasks.map(apiToTask)
+    : store.tasks;
+
+  const usingRealData = !!(apiTasks && apiTasks.length > 0);
+
+  function toggleTask(id: string) {
+    if (usingRealData) {
+      const task = apiTasks?.find(t => t.id === id);
+      const newStatus = task?.status === "done" ? "open" : "done";
+      updateTask.mutate({ id, status: newStatus });
+    } else {
+      store.toggleTask(id);
+    }
+  }
+
+  function sendDraft(id: string) {
+    if (usingRealData) {
+      updateDraft.mutate({ taskId: id, status: "sent" });
+    } else {
+      store.sendDraft(id);
+    }
+  }
+
+  function skipDraft(id: string) {
+    if (usingRealData) {
+      updateDraft.mutate({ taskId: id, status: "skipped" });
+    } else {
+      store.skipDraft(id);
+    }
+  }
+
+  function triggerSync() {
+    sync.mutate();
+  }
+
+  return {
+    tasks,
+    meeting: store.meeting,
+    suggestions: store.suggestions,
+    toggleTask,
+    sendDraft,
+    skipDraft,
+    triggerSync,
+    isSyncing: sync.isPending,
+    isLoading,
+    error,
+    acceptExtractedAction: store.acceptExtractedAction,
+    skipExtractedAction: store.skipExtractedAction,
+    dismissSuggestion: store.dismissSuggestion,
+  };
+}

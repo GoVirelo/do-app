@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/Button";
 import { Sparkle } from "@/components/ui/Sparkle";
 import { tokens } from "@/lib/tokens";
 import type { Meeting } from "@/types";
-import { useTasksStore } from "@/store/tasks";
+import { useAppTasks } from "@/hooks/useAppTasks";
 
 type Props = {
   meeting: Meeting;
 };
 
 export function MeetingCard({ meeting }: Props) {
-  const { acceptExtractedAction, skipExtractedAction } = useTasksStore();
+  const { acceptExtractedAction, skipExtractedAction } = useAppTasks();
   const pendingActions = meeting.extractedActions.filter((a) => !a.accepted);
 
   if (pendingActions.length === 0) return null;
