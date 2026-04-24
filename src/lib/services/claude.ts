@@ -12,7 +12,8 @@ export interface ExtractedAction {
 export async function extractActionsFromNotes(
   notes: string,
   meetingTitle: string,
-  attendees: string[]
+  attendees: string[],
+  ownerName?: string
 ): Promise<ExtractedAction[]> {
   const message = await client.messages.create({
     model: "claude-sonnet-4-6",
@@ -20,7 +21,9 @@ export async function extractActionsFromNotes(
     messages: [
       {
         role: "user",
-        content: `Extract all action items from these meeting notes. Return a JSON array.
+        content: `Extract action items from these meeting notes that are assigned to ${ownerName ? `"${ownerName}"` : "the note owner"}.
+
+The notes use formats like "Richard: do X", "Both: do Y", "Action: do Z" — only include items for ${ownerName ?? "the owner"} or shared/unassigned items. Exclude items assigned to other people.
 
 Meeting: "${meetingTitle}"
 Attendees: ${attendees.join(", ")}
@@ -28,11 +31,11 @@ Attendees: ${attendees.join(", ")}
 Notes:
 ${notes}
 
-Return ONLY valid JSON — an array of objects with fields:
-- title: string (the action item, starting with a verb)
+Return ONLY valid JSON — an array of objects:
+- title: string (the action, starting with a verb, without the person prefix)
 - priority: "hot" | "high" | "medium" | "low"
 - dueDate: ISO date string or null
-- assignee: email or name, or null`,
+- assignee: "${ownerName ?? "me"}"`,
       },
     ],
   });

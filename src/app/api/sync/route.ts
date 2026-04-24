@@ -197,7 +197,7 @@ export async function POST(req: Request) {
 
           if (content && process.env.ANTHROPIC_API_KEY) {
             try {
-              actions = await extractActionsFromNotes(content, note.title ?? "", attendeeNames);
+              actions = await extractActionsFromNotes(content, note.title ?? "", attendeeNames, note.owner?.name);
               console.log(`[granola] extracted ${actions.length} actions from "${note.title}"`);
             } catch (claudeErr: any) {
               claudeError = claudeErr.message;

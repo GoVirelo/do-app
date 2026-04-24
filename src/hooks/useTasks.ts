@@ -141,6 +141,27 @@ export function useUpdateDraft() {
   });
 }
 
+export interface ApiMeeting {
+  id: string;
+  title: string;
+  startAt: string;
+  endAt?: string | null;
+  attendees: { name: string; email: string }[];
+  granolaId?: string | null;
+  tasks: Task[];
+}
+
+export function useMeetings() {
+  return useQuery({
+    queryKey: ["meetings"],
+    queryFn: async (): Promise<ApiMeeting[]> => {
+      const res = await fetch("/api/meetings");
+      if (!res.ok) throw new Error("Failed to fetch meetings");
+      return res.json();
+    },
+  });
+}
+
 export function useSync() {
   const qc = useQueryClient();
   return useMutation({
