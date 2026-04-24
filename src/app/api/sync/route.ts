@@ -144,40 +144,48 @@ export async function POST() {
       let created = 0;
 
       for (const note of notes) {
-        const exists = await prisma.meeting.findUnique({ where: { granolaId: note.id } });
-        console.log("Meeting exists check:", note.id, !!exists);
-        if (exists) continue;
+        try {
+          const exists = await prisma.meeting.findUnique({ where: { granolaId: note.id } });
+          if (exists) continue;
 
-        const allAttendees = [...(note.attendees ?? []), ...(note.owner ? [note.owner] : [])];
-        const attendeeNames = allAttendees.map(a => a.name);
-        const content = getNoteText(note);
-        const actions = content ? await extractActionsFromNotes(content, note.title, attendeeNames) : [];
+          const allAttendees = [...(note.attendees ?? []), ...(note.owner ? [note.owner] : [])];
+          const attendeeNames = allAttendees.map(a => a.name);
+          const content = getNoteText(note);
 
-        const meeting = await prisma.meeting.create({
-          data: {
-            user: { connect: { id: userId } },
-            granolaId: note.id,
-            title: note.title ?? "Untitled meeting",
-            startAt: new Date(getNoteDate(note)),
-            attendees: allAttendees as any,
-            rawNotes: content,
-          },
-        });
+          console.log(`Processing note ${note.id}: "${note.title}", content length: ${content.length}`);
 
-        for (const action of actions) {
-          await prisma.task.create({
+          const meeting = await prisma.meeting.create({
             data: {
-              userId,
-              title: action.title,
-              source: "granola",
-              sourceRef: note.id,
-              bucket: "inbox",
-              priority: action.priority,
-              meetingId: meeting.id,
-              dueAt: action.dueDate ? new Date(action.dueDate) : undefined,
+              user: { connect: { id: userId } },
+              granolaId: note.id,
+              title: note.title ?? "Untitled meeting",
+              startAt: new Date(getNoteDate(note)),
+              attendees: allAttendees as any,
+              rawNotes: content,
             },
           });
-          created++;
+
+          if (content) {
+            const actions = await extractActionsFromNotes(content, note.title ?? "", attendeeNames);
+            console.log(`Extracted ${actions.length} actions from "${note.title}"`);
+            for (const action of actions) {
+              await prisma.task.create({
+                data: {
+                  userId,
+                  title: action.title,
+                  source: "granola",
+                  sourceRef: note.id,
+                  bucket: "inbox",
+                  priority: action.priority,
+                  meetingId: meeting.id,
+                  dueAt: action.dueDate ? new Date(action.dueDate) : undefined,
+                },
+              });
+              created++;
+            }
+          }
+        } catch (noteErr: any) {
+          console.error(`Failed to process note ${note.id}:`, noteErr.message);
         }
       }
 
