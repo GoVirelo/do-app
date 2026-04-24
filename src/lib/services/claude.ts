@@ -15,7 +15,7 @@ export async function extractActionsFromNotes(
   attendees: string[]
 ): Promise<ExtractedAction[]> {
   const message = await client.messages.create({
-    model: "claude-opus-4-7",
+    model: "claude-sonnet-4-6",
     max_tokens: 1024,
     messages: [
       {

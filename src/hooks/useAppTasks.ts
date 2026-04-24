@@ -61,8 +61,8 @@ export function useAppTasks() {
     }
   }
 
-  function triggerSync() {
-    sync.mutate();
+  function triggerSync(force = false) {
+    sync.mutate(force ? { force: true } : undefined);
   }
 
   return {

@@ -14,7 +14,7 @@ type Props = {
   view: View;
   onView?: (v: View) => void;
   right?: ReactNode;
-  onSync?: () => void;
+  onSync?: (force?: boolean) => void;
   isSyncing?: boolean;
 };
 
@@ -63,8 +63,9 @@ export function TopBar({ view, onView, right, onSync, isSyncing }: Props) {
       <div className="flex-1" />
       {right}
       <button
-        onClick={onSync}
+        onClick={(e) => onSync?.(e.shiftKey)}
         disabled={isSyncing}
+        title="Sync  |  Shift+click to re-analyse all meetings"
         className={cn(
           "flex items-center gap-1.5 h-6 px-2.5 text-[11px] rounded-r2 border transition-colors",
           isSyncing

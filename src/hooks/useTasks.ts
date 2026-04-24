@@ -144,8 +144,9 @@ export function useUpdateDraft() {
 export function useSync() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async () => {
-      const res = await fetch("/api/sync", { method: "POST" });
+    mutationFn: async (opts?: { force?: boolean }) => {
+      const url = opts?.force ? "/api/sync?force=1" : "/api/sync";
+      const res = await fetch(url, { method: "POST" });
       if (!res.ok) throw new Error("Sync failed");
       return res.json();
     },

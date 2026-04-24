@@ -9,12 +9,12 @@ import { NextResponse } from "next/server";
 export const maxDuration = 60;
 
 // POST /api/sync — pull latest from connected integrations
-export async function POST() {
+export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const userId = session.user.id;
-  const results: Record<string, { count: number; error?: string }> = {};
+  const results: Record<string, { count: number; meetings?: number; skipped?: number; error?: string }> = {};
 
   // Sync Outlook emails
   const outlookIntegration = await prisma.integration.findUnique({
@@ -139,16 +139,24 @@ export async function POST() {
   // Sync Granola meeting notes
   if (process.env.GRANOLA_API_KEY) {
     try {
+      const { searchParams: sp } = new URL(req.url ?? "http://localhost", "http://localhost");
+      const forceExtract = sp.get("force") === "1";
+
       const notes = await fetchRecentNotes();
-      console.log(`[granola] fetched ${notes.length} notes, ANTHROPIC_API_KEY set: ${!!process.env.ANTHROPIC_API_KEY}`);
+      console.log(`[granola] fetched ${notes.length} notes, force=${forceExtract}, ANTHROPIC_KEY=${!!process.env.ANTHROPIC_API_KEY}`);
       let created = 0;
       let skipped = 0;
       let meetingsNew = 0;
 
       for (const note of notes) {
         try {
-          const exists = await prisma.meeting.findUnique({ where: { granolaId: note.id } });
-          if (exists) {
+          const existing = await prisma.meeting.findUnique({
+            where: { granolaId: note.id },
+            include: { tasks: true },
+          });
+
+          // Skip if meeting exists and we're not force-re-extracting
+          if (existing && !forceExtract) {
             skipped++;
             continue;
           }
@@ -157,19 +165,32 @@ export async function POST() {
           const attendeeNames = allAttendees.map(a => a.name);
           const content = getNoteText(note);
 
-          console.log(`[granola] new note "${note.title}" content_len=${content.length}`);
+          let meeting = existing;
 
-          const meeting = await prisma.meeting.create({
-            data: {
-              user: { connect: { id: userId } },
-              granolaId: note.id,
-              title: note.title ?? "Untitled meeting",
-              startAt: new Date(getNoteDate(note)),
-              attendees: allAttendees as any,
-              rawNotes: content,
-            },
-          });
-          meetingsNew++;
+          if (!existing) {
+            console.log(`[granola] new note "${note.title}" content_len=${content.length}`);
+            meeting = await prisma.meeting.create({
+              data: {
+                user: { connect: { id: userId } },
+                granolaId: note.id,
+                title: note.title ?? "Untitled meeting",
+                startAt: new Date(getNoteDate(note)),
+                attendees: allAttendees as any,
+                rawNotes: content,
+              },
+              include: { tasks: true },
+            });
+            meetingsNew++;
+          } else {
+            console.log(`[granola] force re-extracting "${note.title}"`);
+            // Delete old fallback tasks so we can replace with real actions
+            const fallbackIds = existing.tasks
+              .filter(t => t.title.startsWith("Review notes:"))
+              .map(t => t.id);
+            if (fallbackIds.length > 0) {
+              await prisma.task.deleteMany({ where: { id: { in: fallbackIds } } });
+            }
+          }
 
           let actions: Awaited<ReturnType<typeof extractActionsFromNotes>> = [];
 
@@ -194,14 +215,14 @@ export async function POST() {
                   sourceRef: note.id,
                   bucket: "inbox",
                   priority: action.priority,
-                  meetingId: meeting.id,
+                  meetingId: meeting!.id,
                   dueAt: action.dueDate ? new Date(action.dueDate) : undefined,
                 },
               });
               created++;
             }
-          } else {
-            // Always create at least one task per new meeting so it appears in the stream
+          } else if (!existing) {
+            // Fallback only for brand-new meetings
             await prisma.task.create({
               data: {
                 userId,
@@ -210,7 +231,7 @@ export async function POST() {
                 sourceRef: note.id,
                 bucket: "inbox",
                 priority: "medium",
-                meetingId: meeting.id,
+                meetingId: meeting!.id,
               },
             });
             created++;

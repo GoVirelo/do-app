@@ -34,7 +34,7 @@ export function StreamView({ onViewChange }: Props) {
       <TopBar
         view="Stream"
         onView={onViewChange}
-        onSync={triggerSync}
+        onSync={(force) => triggerSync(force)}
         isSyncing={isSyncing}
         right={
           <>
