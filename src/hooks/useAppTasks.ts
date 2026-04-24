@@ -32,12 +32,8 @@ export function useAppTasks() {
   const generateDraft = useGenerateDraft();
   const sync = useSync();
 
-  // Use real API data when available, fall back to mock store data
-  const tasks: Task[] = (apiTasks && apiTasks.length > 0)
-    ? apiTasks.map(apiToTask)
-    : store.tasks;
-
-  const usingRealData = !!(apiTasks && apiTasks.length > 0);
+  const tasks: Task[] = (apiTasks ?? []).map(apiToTask);
+  const usingRealData = true;
 
   function toggleTask(id: string) {
     if (usingRealData) {
