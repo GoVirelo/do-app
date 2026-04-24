@@ -101,9 +101,19 @@ export function Sidebar({ activeItem = "Stream" }: Props) {
       <div className="flex-1" />
 
       <button
+        onClick={() => router.push("/connections")}
+        className={cn(
+          "flex items-center gap-2 px-2 py-2 text-[11.5px] transition-colors",
+          activeItem === "Connections" ? "text-bronze" : "text-fg-2 hover:text-fg-1"
+        )}
+      >
+        <Icons.flash size={14} />
+        <span>Connections</span>
+      </button>
+      <button
         onClick={() => router.push("/settings")}
         className={cn(
-          "flex items-center gap-2 px-2 py-2.5 text-[11.5px] transition-colors",
+          "flex items-center gap-2 px-2 py-2 text-[11.5px] transition-colors",
           activeItem === "Settings" ? "text-bronze" : "text-fg-2 hover:text-fg-1"
         )}
       >
