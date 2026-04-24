@@ -63,9 +63,13 @@ export function LoginView() {
         {/* Step content */}
         {step === "signin" ? (
           <SignInForm
-            onSuccess={(e) => {
+            onSuccess={(e, requiresTOTP) => {
               setEmail(e);
-              setStep("2fa");
+              if (requiresTOTP) {
+                setStep("2fa");
+              } else {
+                router.push("/");
+              }
             }}
           />
         ) : (

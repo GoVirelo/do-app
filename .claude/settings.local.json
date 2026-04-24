@@ -30,7 +30,9 @@
       "Bash(node -e ' *)",
       "WebSearch",
       "Bash(gh auth *)",
-      "Bash(openssl rand *)"
+      "Bash(openssl rand *)",
+      "Bash(echo 'DATABASE_URL=\"postgresql://neondb_owner:npg_e5BoxrADbch1@ep-cool-field-ant0ufj2-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\"')",
+      "Bash(DATABASE_URL=\"postgresql://neondb_owner:npg_e5BoxrADbch1@ep-cool-field-ant0ufj2-pooler.c-6.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require\" node node_modules/prisma/build/index.js migrate dev --name init)"
     ]
   }
 }

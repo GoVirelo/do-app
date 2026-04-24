@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { tokens } from "@/lib/tokens";
 
-type Props = { onSuccess: (email: string) => void };
+type Props = { onSuccess: (email: string, requiresTOTP: boolean) => void };
 
 function OAuthButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
@@ -56,13 +56,24 @@ export function SignInForm({ onSuccess }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     if (!email || !password) { setError("Please fill in all fields."); return; }
     setLoading(true);
-    // Simulate auth delay, then proceed to 2FA
-    setTimeout(() => { setLoading(false); onSuccess(email); }, 800);
+    try {
+      const res = await fetch("/api/auth/check-totp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error ?? "Invalid email or password."); setLoading(false); return; }
+      onSuccess(email, data.requiresTOTP);
+    } catch {
+      setError("Something went wrong. Please try again.");
+    }
+    setLoading(false);
   };
 
   return (
