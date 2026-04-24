@@ -71,6 +71,8 @@ model Task {
   source         String    @default("manual")  // outlook | slack | granola | manual
   sourceRef      String?
   sourceItemId   String?
+  notes          String?   @db.Text
+  subtasks       Json      @default("[]")
   dueAt          DateTime?
   scheduledStart DateTime?
   scheduledEnd   DateTime?

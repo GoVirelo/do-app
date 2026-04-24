@@ -1,6 +1,11 @@
 type IconProps = { size?: number; className?: string };
 
 export const Icons = {
+  close: ({ size = 14, className }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className={className}>
+      <path d="M3 3l10 10M13 3L3 13"/>
+    </svg>
+  ),
   inbox: ({ size = 14, className }: IconProps) => (
     <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
       <path d="M2 8v5a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8"/>

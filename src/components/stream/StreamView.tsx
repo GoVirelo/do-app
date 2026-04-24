@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
+import { NewTaskModal } from "./NewTaskModal";
 import { useAppTasks } from "@/hooks/useAppTasks";
 import { useMeetings, useCreateTask } from "@/hooks/useTasks";
 import { useQueryClient } from "@tanstack/react-query";
@@ -26,6 +27,7 @@ export function StreamView({ onViewChange }: Props) {
   const { data: meetings = [] } = useMeetings();
   const createTask = useCreateTask();
   const qc = useQueryClient();
+  const [showNewTask, setShowNewTask] = useState(false);
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -66,7 +68,7 @@ export function StreamView({ onViewChange }: Props) {
         onSync={(force) => triggerSync(force)}
         isSyncing={isSyncing}
         right={
-          <Button variant="primary" size="sm">
+          <Button variant="primary" size="sm" onClick={() => setShowNewTask(true)}>
             <Icons.plus size={12} /> New task
           </Button>
         }
@@ -263,6 +265,8 @@ export function StreamView({ onViewChange }: Props) {
 
         <AIRail />
       </div>
+
+      {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} />}
     </div>
   );
 }

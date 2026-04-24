@@ -40,7 +40,8 @@
       "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); entries=[e for e in data['log']['entries'] if 'integrations' in e['request']['url']]; [print\\(e['request']['url'], e['response']['status'], e['response']['content'].get\\('text',''\\)[:200]\\) for e in entries]\")",
       "Bash(python3 -c \"import os; dirs = os.listdir\\('/Users/richardd'\\); print\\([d for d in dirs if 'do' in d.lower\\(\\)]\\)\")",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
-      "Bash(node node_modules/next/dist/bin/next build)"
+      "Bash(node node_modules/next/dist/bin/next build)",
+      "Bash(npx prisma *)"
     ]
   }
 }

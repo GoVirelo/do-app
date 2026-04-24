@@ -8,6 +8,8 @@ const UpdateTaskSchema = z.object({
   status: z.enum(["open", "done", "snoozed"]).optional(),
   priority: z.enum(["hot", "high", "medium", "low"]).optional(),
   bucket: z.enum(["inbox", "today", "upcoming", "waiting", "done"]).optional(),
+  notes: z.string().nullable().optional(),
+  subtasks: z.array(z.string()).optional(),
   dueAt: z.string().datetime().nullable().optional(),
   scheduledStart: z.string().datetime().nullable().optional(),
   scheduledEnd: z.string().datetime().nullable().optional(),
