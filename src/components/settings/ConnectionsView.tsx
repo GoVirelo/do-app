@@ -206,9 +206,11 @@ export function ConnectionsView() {
   const [connectedAs, setConnectedAs] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    fetch("/api/integrations")
-      .then(r => r.json())
-      .then(data => {
+    Promise.all([
+      fetch("/api/integrations").then(r => r.json()),
+      fetch("/api/integrations/status").then(r => r.json()),
+    ])
+      .then(([data, status]) => {
         const statuses: Record<string, ConnectionStatus> = {
           outlook: "disconnected",
           slack: "disconnected",
@@ -220,7 +222,8 @@ export function ConnectionsView() {
           statuses[item.provider] = "connected";
           if (item.metadata?.email) as[item.provider] = item.metadata.email;
         }
-        statuses.anthropic = "connected";
+        if (status.granola) statuses.granola = "connected";
+        if (status.anthropic) statuses.anthropic = "connected";
         setIntegrations(statuses);
         setConnectedAs(as);
       })
