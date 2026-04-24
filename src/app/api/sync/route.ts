@@ -6,6 +6,8 @@ import { fetchRecentNotes, getNoteText, getNoteDate } from "@/lib/services/grano
 import { generateDraftReply, extractActionsFromNotes } from "@/lib/services/claude";
 import { NextResponse } from "next/server";
 
+export const maxDuration = 60;
+
 // POST /api/sync — pull latest from connected integrations
 export async function POST() {
   const session = await auth();
