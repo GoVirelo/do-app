@@ -193,15 +193,18 @@ export async function POST(req: Request) {
           }
 
           let actions: Awaited<ReturnType<typeof extractActionsFromNotes>> = [];
+          let claudeError: string | undefined;
 
           if (content && process.env.ANTHROPIC_API_KEY) {
             try {
               actions = await extractActionsFromNotes(content, note.title ?? "", attendeeNames);
               console.log(`[granola] extracted ${actions.length} actions from "${note.title}"`);
             } catch (claudeErr: any) {
+              claudeError = claudeErr.message;
               console.error(`[granola] Claude extraction failed for "${note.title}":`, claudeErr.message);
             }
           } else if (!process.env.ANTHROPIC_API_KEY) {
+            claudeError = "ANTHROPIC_API_KEY not set";
             console.warn("[granola] ANTHROPIC_API_KEY not set — skipping extraction");
           }
 
@@ -243,7 +246,7 @@ export async function POST(req: Request) {
       }
 
       console.log(`[granola] done: ${notes.length} found, ${skipped} skipped, ${meetingsNew} new meetings, ${created} tasks created`);
-      results.granola = { count: created, meetings: meetingsNew, skipped };
+      results.granola = { count: created, meetings: meetingsNew, skipped } as any;
     } catch (err: any) {
       console.error("[granola] sync error:", err.message);
       results.granola = { count: 0, error: err.message };
