@@ -140,19 +140,24 @@ export async function POST() {
   if (process.env.GRANOLA_API_KEY) {
     try {
       const notes = await fetchRecentNotes();
-      console.log("Granola notes fetched:", notes.length, JSON.stringify(notes.slice(0,2)));
+      console.log(`[granola] fetched ${notes.length} notes, ANTHROPIC_API_KEY set: ${!!process.env.ANTHROPIC_API_KEY}`);
       let created = 0;
+      let skipped = 0;
+      let meetingsNew = 0;
 
       for (const note of notes) {
         try {
           const exists = await prisma.meeting.findUnique({ where: { granolaId: note.id } });
-          if (exists) continue;
+          if (exists) {
+            skipped++;
+            continue;
+          }
 
           const allAttendees = [...(note.attendees ?? []), ...(note.owner ? [note.owner] : [])];
           const attendeeNames = allAttendees.map(a => a.name);
           const content = getNoteText(note);
 
-          console.log(`Processing note ${note.id}: "${note.title}", content length: ${content.length}`);
+          console.log(`[granola] new note "${note.title}" content_len=${content.length}`);
 
           const meeting = await prisma.meeting.create({
             data: {
@@ -164,10 +169,22 @@ export async function POST() {
               rawNotes: content,
             },
           });
+          meetingsNew++;
 
-          if (content) {
-            const actions = await extractActionsFromNotes(content, note.title ?? "", attendeeNames);
-            console.log(`Extracted ${actions.length} actions from "${note.title}"`);
+          let actions: Awaited<ReturnType<typeof extractActionsFromNotes>> = [];
+
+          if (content && process.env.ANTHROPIC_API_KEY) {
+            try {
+              actions = await extractActionsFromNotes(content, note.title ?? "", attendeeNames);
+              console.log(`[granola] extracted ${actions.length} actions from "${note.title}"`);
+            } catch (claudeErr: any) {
+              console.error(`[granola] Claude extraction failed for "${note.title}":`, claudeErr.message);
+            }
+          } else if (!process.env.ANTHROPIC_API_KEY) {
+            console.warn("[granola] ANTHROPIC_API_KEY not set — skipping extraction");
+          }
+
+          if (actions.length > 0) {
             for (const action of actions) {
               await prisma.task.create({
                 data: {
@@ -183,14 +200,31 @@ export async function POST() {
               });
               created++;
             }
+          } else {
+            // Always create at least one task per new meeting so it appears in the stream
+            await prisma.task.create({
+              data: {
+                userId,
+                title: `Review notes: ${note.title ?? "Meeting"}`,
+                source: "granola",
+                sourceRef: note.id,
+                bucket: "inbox",
+                priority: "medium",
+                meetingId: meeting.id,
+              },
+            });
+            created++;
+            console.log(`[granola] created fallback task for "${note.title}"`);
           }
         } catch (noteErr: any) {
-          console.error(`Failed to process note ${note.id}:`, noteErr.message);
+          console.error(`[granola] failed to process note ${note.id}:`, noteErr.message);
         }
       }
 
-      results.granola = { count: created };
+      console.log(`[granola] done: ${notes.length} found, ${skipped} skipped, ${meetingsNew} new meetings, ${created} tasks created`);
+      results.granola = { count: created, meetings: meetingsNew, skipped };
     } catch (err: any) {
+      console.error("[granola] sync error:", err.message);
       results.granola = { count: 0, error: err.message };
     }
   }

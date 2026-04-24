@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { StreamView } from "@/components/stream/StreamView";
 import { BoardView } from "@/components/board/BoardView";
 import { DayView } from "@/components/day/DayView";
@@ -10,10 +10,6 @@ type View = "Stream" | "Board" | "Day" | "Personal";
 
 export default function Home() {
   const [view, setView] = useState<View>("Stream");
-
-  useEffect(() => {
-    fetch("/api/sync", { method: "POST" }).catch(() => {});
-  }, []);
 
   return (
     <div className="h-screen overflow-hidden">
