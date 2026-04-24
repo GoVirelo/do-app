@@ -137,8 +137,7 @@ export async function POST() {
   // Sync Granola meeting notes
   if (process.env.GRANOLA_API_KEY) {
     try {
-      const since = new Date(Date.now() - 25 * 60 * 60 * 1000); // last 25 hours
-      const notes = await fetchRecentNotes(since);
+      const notes = await fetchRecentNotes();
       let created = 0;
 
       for (const note of notes) {

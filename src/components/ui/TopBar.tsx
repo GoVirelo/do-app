@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useState } from "react";
 import { Avatar } from "./Avatar";
 import { Kbd } from "./Kbd";
 import { Icons } from "./Icons";
@@ -16,6 +17,15 @@ type Props = {
 };
 
 export function TopBar({ view, onView, right }: Props) {
+  const [syncing, setSyncing] = useState(false);
+
+  async function handleSync() {
+    setSyncing(true);
+    await fetch("/api/sync", { method: "POST" }).catch(() => {});
+    setSyncing(false);
+    window.location.reload();
+  }
+
   return (
     <div className="h-11 flex items-center gap-3 px-4 border-b border-line bg-bg-1 flex-shrink-0">
       {/* Logo + wordmark */}
@@ -58,6 +68,19 @@ export function TopBar({ view, onView, right }: Props) {
 
       <div className="flex-1" />
       {right}
+      <button
+        onClick={handleSync}
+        disabled={syncing}
+        className={cn(
+          "flex items-center gap-1.5 h-6 px-2.5 text-[11px] rounded-r2 border transition-colors",
+          syncing
+            ? "border-line text-fg-3 cursor-not-allowed"
+            : "border-line text-fg-2 hover:text-fg-1 hover:bg-bg-2"
+        )}
+      >
+        <Icons.flash size={11} className={syncing ? "animate-spin" : ""} />
+        {syncing ? "Syncing…" : "Sync"}
+      </button>
       <Avatar initial="M" size={24} />
     </div>
   );
