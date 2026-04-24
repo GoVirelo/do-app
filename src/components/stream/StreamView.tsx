@@ -34,11 +34,10 @@ export function StreamView({ onViewChange }: Props) {
       <TopBar
         view="Stream"
         onView={onViewChange}
+        onSync={triggerSync}
+        isSyncing={isSyncing}
         right={
           <>
-            <Button variant="ghost" size="sm" onClick={triggerSync} disabled={isSyncing}>
-              {isSyncing ? "Syncing…" : "Sync"}
-            </Button>
             <Button variant="primary" size="sm">
               <Icons.plus size={12} /> New task
             </Button>
