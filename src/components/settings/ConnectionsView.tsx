@@ -220,8 +220,7 @@ export function ConnectionsView() {
           statuses[item.provider] = "connected";
           if (item.metadata?.email) as[item.provider] = item.metadata.email;
         }
-        if (data.anthropic) statuses.anthropic = "connected";
-        else if (process.env.NEXT_PUBLIC_HAS_ANTHROPIC === "true") statuses.anthropic = "connected";
+        statuses.anthropic = "connected";
         setIntegrations(statuses);
         setConnectedAs(as);
       })
