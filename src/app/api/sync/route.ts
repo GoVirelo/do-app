@@ -138,6 +138,7 @@ export async function POST() {
   if (process.env.GRANOLA_API_KEY) {
     try {
       const notes = await fetchRecentNotes();
+      console.log("Granola notes fetched:", notes.length, JSON.stringify(notes.slice(0,2)));
       let created = 0;
 
       for (const note of notes) {
