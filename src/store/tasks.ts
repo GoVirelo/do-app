@@ -44,9 +44,9 @@ async function apiDraftStatus(taskId: string, status: "sent" | "skipped") {
 }
 
 export const useTasksStore = create<TasksStore>((set) => ({
-  tasks: mockTasks,
-  meeting: mockMeeting,
-  suggestions: mockSuggestions,
+  tasks: [],
+  meeting: null,
+  suggestions: [],
 
   toggleTask: (id) => {
     set((s) => {
