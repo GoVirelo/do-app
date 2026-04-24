@@ -171,6 +171,9 @@ export function useSync() {
       if (!res.ok) throw new Error("Sync failed");
       return res.json();
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+    },
   });
 }

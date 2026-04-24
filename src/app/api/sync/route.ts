@@ -182,13 +182,9 @@ export async function POST(req: Request) {
             });
             meetingsNew++;
           } else {
-            console.log(`[granola] force re-extracting "${note.title}"`);
-            // Delete old fallback tasks so we can replace with real actions
-            const fallbackIds = existing.tasks
-              .filter(t => t.title.startsWith("Review notes:"))
-              .map(t => t.id);
-            if (fallbackIds.length > 0) {
-              await prisma.task.deleteMany({ where: { id: { in: fallbackIds } } });
+            console.log(`[granola] force re-extracting "${note.title}" — deleting ${existing.tasks.length} old tasks`);
+            if (existing.tasks.length > 0) {
+              await prisma.task.deleteMany({ where: { meetingId: existing.id } });
             }
           }
 
