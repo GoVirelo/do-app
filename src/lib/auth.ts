@@ -29,6 +29,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         params: {
           scope:
             "openid profile email offline_access Mail.Read Calendars.Read Tasks.ReadWrite",
+          redirect_uri: `${process.env.AUTH_URL ?? process.env.NEXTAUTH_URL}/api/auth/callback/microsoft-entra-id`,
         },
       },
     }),
