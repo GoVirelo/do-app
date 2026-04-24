@@ -36,7 +36,8 @@
       "mcp__Claude_in_Chrome__tabs_context_mcp",
       "mcp__Claude_in_Chrome__navigate",
       "mcp__Claude_in_Chrome__browser_batch",
-      "WebFetch(domain:docs.granola.ai)"
+      "WebFetch(domain:docs.granola.ai)",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); entries=[e for e in data['log']['entries'] if 'integrations' in e['request']['url']]; [print\\(e['request']['url'], e['response']['status'], e['response']['content'].get\\('text',''\\)[:200]\\) for e in entries]\")"
     ]
   }
 }
