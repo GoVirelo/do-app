@@ -6,10 +6,23 @@ const GRANOLA_BASE = "https://public-api.granola.ai/v1";
 export interface GranolaNote {
   id: string;
   title: string;
-  created_at: string;
+  created_at?: string;
+  createdAt?: string;
   summary?: string;
-  transcript?: string;
+  transcript?: { speaker?: string; text: string }[] | string;
+  owner?: { name: string; email: string };
   attendees?: { name: string; email: string }[];
+}
+
+export function getNoteText(note: GranolaNote): string {
+  if (note.summary) return note.summary;
+  if (!note.transcript) return "";
+  if (typeof note.transcript === "string") return note.transcript;
+  return note.transcript.map(t => `${t.speaker ? t.speaker + ": " : ""}${t.text}`).join("\n");
+}
+
+export function getNoteDate(note: GranolaNote): string {
+  return note.created_at ?? note.createdAt ?? new Date().toISOString();
 }
 
 export async function fetchRecentNotes(since?: Date): Promise<GranolaNote[]> {
@@ -23,7 +36,7 @@ export async function fetchRecentNotes(since?: Date): Promise<GranolaNote[]> {
     headers: { Authorization: `Bearer ${apiKey}` },
   });
 
-  if (!res.ok) throw new Error(`Granola API error: ${res.status}`);
+  if (!res.ok) throw new Error(`Granola API error: ${res.status} ${await res.text()}`);
   const data = await res.json();
   return (data.notes ?? data) as GranolaNote[];
 }

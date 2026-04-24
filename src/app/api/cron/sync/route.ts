@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fetchUnreadEmails } from "@/lib/services/outlook";
 import { fetchMentions } from "@/lib/services/slack";
-import { fetchRecentNotes } from "@/lib/services/granola";
+import { fetchRecentNotes, getNoteText, getNoteDate } from "@/lib/services/granola";
 import { generateDraftReply, extractActionsFromNotes } from "@/lib/services/claude";
 import { NextResponse } from "next/server";
 
@@ -147,8 +147,9 @@ export async function GET(req: Request) {
           const exists = await prisma.meeting.findUnique({ where: { granolaId: note.id } });
           if (exists) continue;
 
-          const attendeeNames = (note.attendees ?? []).map(a => a.name);
-          const content = note.summary ?? note.transcript ?? "";
+          const allAttendees = [...(note.attendees ?? []), ...(note.owner ? [note.owner] : [])];
+          const attendeeNames = allAttendees.map(a => a.name);
+          const content = getNoteText(note);
           const actions = content ? await extractActionsFromNotes(content, note.title, attendeeNames) : [];
 
           const meeting = await prisma.meeting.create({
@@ -156,7 +157,7 @@ export async function GET(req: Request) {
               userId: user.id,
               granolaId: note.id,
               title: note.title,
-              startAt: new Date(note.created_at),
+              startAt: new Date(getNoteDate(note)),
               attendees: (note.attendees ?? []) as any,
               rawNotes: content,
             },
