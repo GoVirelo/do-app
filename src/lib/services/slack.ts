@@ -24,48 +24,47 @@ export interface SlackMessage {
 export async function fetchMentions(userId: string): Promise<SlackMessage[]> {
   const slack = await getClient(userId);
 
-  // Get the bot/user ID to filter mentions
-  const identity = await slack.auth.test();
-  const meId = identity.user_id;
+  const threeDaysAgo = (Date.now() / 1000 - 3 * 24 * 60 * 60).toString();
 
+  // Only fetch DMs (im = direct messages)
   const conversations = await slack.conversations.list({
-    types: "public_channel,private_channel,im",
-    limit: 20,
+    types: "im",
+    limit: 50,
   });
 
-  const mentions: SlackMessage[] = [];
+  const messages: SlackMessage[] = [];
 
   for (const channel of conversations.channels ?? []) {
     if (!channel.id) continue;
     try {
       const history = await slack.conversations.history({
         channel: channel.id,
-        limit: 20,
+        oldest: threeDaysAgo,
+        limit: 50,
       });
 
       for (const msg of history.messages ?? []) {
         if (!msg.text || !msg.ts) continue;
-        const isMention = msg.text.includes(`<@${meId}>`);
-        if (isMention || channel.is_im) {
-          mentions.push({
-            id: `${channel.id}-${msg.ts}`,
-            channelId: channel.id,
-            channelName: (channel.name ?? channel.id) as string,
-            text: msg.text,
-            userId: msg.user ?? "",
-            username: msg.username ?? msg.user ?? "unknown",
-            ts: msg.ts,
-            threadTs: msg.thread_ts,
-            isMention,
-          });
-        }
+        // Skip messages sent by the user themselves
+        if (msg.subtype === "bot_message") continue;
+        messages.push({
+          id: `${channel.id}-${msg.ts}`,
+          channelId: channel.id,
+          channelName: channel.name ?? channel.id ?? "DM",
+          text: msg.text,
+          userId: msg.user ?? "",
+          username: msg.username ?? msg.user ?? "unknown",
+          ts: msg.ts,
+          threadTs: msg.thread_ts,
+          isMention: true,
+        });
       }
     } catch {
-      // Skip channels we can't read
+      // Skip DMs we can't read
     }
   }
 
-  return mentions.slice(0, 50);
+  return messages.slice(0, 100);
 }
 
 export async function postMessage(
