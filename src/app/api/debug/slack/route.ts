@@ -14,23 +14,40 @@ export async function GET() {
   if (!integration) return NextResponse.json({ connected: false, error: "No Slack integration found" });
 
   const tokenPrefix = integration.accessToken?.slice(0, 10) ?? "empty";
-  const isUserToken = integration.accessToken?.startsWith("xoxp-");
-  const isBotToken = integration.accessToken?.startsWith("xoxb-");
 
   try {
     const slack = new WebClient(integration.accessToken);
-    const auth = await slack.auth.test();
-    const dms = await slack.conversations.list({ types: "im", limit: 5 });
+    const authInfo = await slack.auth.test();
+    const mySlackId = authInfo.user_id ?? "";
+
+    const threeDaysAgo = (Date.now() / 1000 - 3 * 24 * 60 * 60).toString();
+    const dms = await slack.conversations.list({ types: "im", limit: 50 });
+    const channels = dms.channels ?? [];
+
+    const dmResults = [];
+    for (const ch of channels.slice(0, 5)) {
+      if (!ch.id) continue;
+      try {
+        const history = await slack.conversations.history({ channel: ch.id, oldest: threeDaysAgo, limit: 10 });
+        const msgs = history.messages ?? [];
+        dmResults.push({
+          channelId: ch.id,
+          messageCount: msgs.length,
+          lastMessageFromMe: msgs[0]?.user === mySlackId,
+          sample: msgs[0]?.text?.slice(0, 80),
+        });
+      } catch (e: any) {
+        dmResults.push({ channelId: ch.id, error: e.message });
+      }
+    }
+
     return NextResponse.json({
-      connected: true,
       tokenPrefix,
-      isUserToken,
-      isBotToken,
-      authedUser: auth.user,
-      authedUserId: auth.user_id,
-      dmCount: dms.channels?.length ?? 0,
+      mySlackId,
+      dmChannelCount: channels.length,
+      dmResults,
     });
   } catch (err: any) {
-    return NextResponse.json({ connected: true, tokenPrefix, isUserToken, isBotToken, error: err.message });
+    return NextResponse.json({ tokenPrefix, error: err.message });
   }
 }
