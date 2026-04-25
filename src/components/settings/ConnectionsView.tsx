@@ -260,7 +260,7 @@ export function ConnectionsView() {
       lastSync: "5 min ago",
       capabilities: ["@mentions → tasks", "DMs → tasks", "AI draft replies", "Thread context"],
       provider: "slack",
-      connectAction: () => signIn("slack", { callbackUrl: "/connections" }),
+      connectAction: () => { window.location.href = "/api/slack/connect"; },
     },
     {
       id: "granola",
