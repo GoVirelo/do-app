@@ -31,7 +31,7 @@ function bucketLabel(bucket: string, dueAt?: Date | null): { label: string; colo
   return { label: "No date", color: tokens.fg3 };
 }
 
-function SchedulePill({ task }: { task: Task }) {
+export function SchedulePill({ task }: { task: Task }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

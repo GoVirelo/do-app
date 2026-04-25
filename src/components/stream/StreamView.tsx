@@ -10,7 +10,7 @@ import { Sidebar } from "@/components/ui/Sidebar";
 import { Button } from "@/components/ui/Button";
 import { Icons } from "@/components/ui/Icons";
 import { SectionHeader } from "./SectionHeader";
-import { TaskRow } from "./TaskRow";
+import { TaskRow, SchedulePill } from "./TaskRow";
 import { AIRail } from "./AIRail";
 import { Avatar } from "@/components/ui/Avatar";
 import { SourceBadge } from "@/components/ui/SourceBadge";
@@ -176,7 +176,7 @@ export function StreamView({ onViewChange }: Props) {
                             }}
                           />
                           <span
-                            className="transition-all"
+                            className="flex-1 transition-all"
                             style={{
                               fontSize: isDone ? "11.5px" : "13px",
                               textDecoration: isDone ? "line-through" : "none",
@@ -185,6 +185,7 @@ export function StreamView({ onViewChange }: Props) {
                           >
                             {t.title}
                           </span>
+                          {!isDone && live && <SchedulePill task={live} />}
                         </div>
                       );
                     })}
