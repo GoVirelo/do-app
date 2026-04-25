@@ -13,6 +13,7 @@ export const authConfig: NextAuthConfig = {
       if (pathname.startsWith("/login")) return true;
       if (pathname.startsWith("/api/auth")) return true;
       if (pathname.startsWith("/api/webhooks")) return true;
+      if (pathname.startsWith("/api/shortcuts/task")) return true;
 
       if (!isLoggedIn && pathname.startsWith("/api/")) return false;
       if (!isLoggedIn) return false;
