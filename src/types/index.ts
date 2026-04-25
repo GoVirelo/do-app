@@ -1,4 +1,4 @@
-export type Source = "granola" | "slack" | "outlook" | "personal";
+export type { Source } from "@/lib/tokens";
 
 export type Task = {
   id: string;

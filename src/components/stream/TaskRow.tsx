@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/Button";
 import { Sparkle } from "@/components/ui/Sparkle";
 import { cn } from "@/lib/utils";
 import { tokens } from "@/lib/tokens";
-import type { Task } from "@/types";
+import type { Task, Source } from "@/types";
 
 // Module-level ref avoids dataTransfer key compatibility issues across browsers
 let _draggingTaskId = "";
@@ -114,10 +114,20 @@ type Props = {
 };
 
 export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
+  const qcRow = useQueryClient();
   const [hovered, setHovered] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editBody, setEditBody] = useState("");
   const done = task.status === "done";
+
+  async function handleSourceChange(source: Source) {
+    await fetch(`/api/tasks/${task.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ source }),
+    });
+    qcRow.invalidateQueries({ queryKey: ["tasks"] });
+  }
   const draft = task.aiDraft;
   const showDraft = draft && draft.state === "proposed";
   const isSlack = task.source === "slack";
@@ -163,7 +173,7 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
           <span className={cn("text-[13.5px] font-medium", done ? "text-fg-3 line-through" : "text-fg-0")}>
             {task.title}
           </span>
-          <SourceBadge kind={task.source} />
+          <SourceBadge kind={task.source} onChange={handleSourceChange} />
         </div>
 
         {task.meta && (

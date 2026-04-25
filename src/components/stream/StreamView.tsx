@@ -69,7 +69,8 @@ export function StreamView({ onViewChange }: Props) {
   function applyFilter(t: Task) {
     if (!filter) return true;
     if (filter.type === "source") {
-      if (filter.value === "personal") return t.source === "personal" || t.source === "manual";
+      if (filter.value === "personal") return t.source === "personal";
+      if (filter.value === "manual") return t.source === "manual";
       return t.source === filter.value;
     }
     if (filter.value === "today") return t.bucket === "today";

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { sourceTokens, tokens } from "@/lib/tokens";
 import type { Source } from "@/types";
 
-const ALL_SOURCES: Source[] = ["granola", "outlook", "slack", "personal"];
+const ALL_SOURCES: Source[] = ["manual", "personal", "granola", "outlook", "slack"];
 
 type Props = {
   kind: Source;
@@ -11,7 +11,7 @@ type Props = {
 };
 
 export function SourceBadge({ kind, className, onChange }: Props) {
-  const src = sourceTokens[kind] ?? sourceTokens.personal;
+  const src = sourceTokens[kind] ?? sourceTokens.manual;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 

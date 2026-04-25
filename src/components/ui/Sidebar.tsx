@@ -116,7 +116,8 @@ export function Sidebar({ activeItem = "Stream", filter, onFilter }: Props) {
     granola: openTasks.filter(t => t.source === "granola").length,
     slack: openTasks.filter(t => t.source === "slack").length,
     outlook: openTasks.filter(t => t.source === "outlook").length,
-    personal: openTasks.filter(t => t.source === "personal" || t.source === "manual").length,
+    personal: openTasks.filter(t => t.source === "personal").length,
+    manual: openTasks.filter(t => t.source === "manual").length,
   };
 
   if (collapsed) {
@@ -166,6 +167,7 @@ export function Sidebar({ activeItem = "Stream", filter, onFilter }: Props) {
         <SidebarSource kind="slack" label="Slack" count={counts.slack} active={filter?.type === "source" && filter.value === "slack"} onClick={() => toggle("source", "slack")} />
         <SidebarSource kind="outlook" label="Outlook" count={counts.outlook} active={filter?.type === "source" && filter.value === "outlook"} onClick={() => toggle("source", "outlook")} />
         <SidebarSource kind="personal" label="Personal" count={counts.personal} active={filter?.type === "source" && filter.value === "personal"} onClick={() => toggle("source", "personal")} />
+        <SidebarSource kind="manual" label="Manual" count={counts.manual} active={filter?.type === "source" && filter.value === "manual"} onClick={() => toggle("source", "manual")} />
       </SidebarSection>
 
       <SidebarSection label="Views" collapsed={viewsCollapsed} onToggle={() => setViewsCollapsed(v => !v)}>

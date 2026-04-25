@@ -25,11 +25,12 @@ export const tokens = {
   amberSoft: "#2a1f10",
 } as const;
 
-export type Source = "granola" | "slack" | "outlook" | "personal";
+export type Source = "granola" | "slack" | "outlook" | "personal" | "manual";
 
 export const sourceTokens: Record<Source, { fg: string; bg: string; line: string; label: string }> = {
-  granola: { fg: "#d4a55a", bg: "#2a1f10", line: "#4d3920", label: "Granola" },
-  slack: { fg: "#a77bb8", bg: "#241a2a", line: "#3d2b47", label: "Slack" },
-  outlook: { fg: "#7092b8", bg: "#172032", line: "#2a3a54", label: "Outlook" },
+  granola:  { fg: "#d4a55a", bg: "#2a1f10", line: "#4d3920", label: "Granola" },
+  slack:    { fg: "#a77bb8", bg: "#241a2a", line: "#3d2b47", label: "Slack" },
+  outlook:  { fg: "#7092b8", bg: "#172032", line: "#2a3a54", label: "Outlook" },
   personal: { fg: "#8a8f97", bg: "#1c2026", line: "#373d45", label: "Personal" },
+  manual:   { fg: "#5a5f67", bg: "#13151a", line: "#2a2f36", label: "Manual" },
 };
