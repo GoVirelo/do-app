@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { StatusBar } from "./StatusBar";
 import { FilterPills } from "./FilterPills";
 import { MobileMeetingCard } from "./MobileMeetingCard";
@@ -9,16 +11,18 @@ import { Sparkle } from "@/components/ui/Sparkle";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icons } from "@/components/ui/Icons";
 import { tokens } from "@/lib/tokens";
-import type { ReactNode } from "react";
+import { useAppTasks } from "@/hooks/useAppTasks";
+import { useMeetings } from "@/hooks/useTasks";
+import type { Task } from "@/types";
 
-function MobileSection({ label, color, children }: { label: string; color: string; children: ReactNode }) {
+type FilterValue = "All" | "Hot" | "Today" | "Meetings" | "Personal";
+
+function MobileSection({ label, color, children }: { label: string; color: string; children: React.ReactNode }) {
   return (
     <>
       <div className="flex items-center gap-2 px-1.5 pt-3.5 pb-2">
         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: color }} />
-        <span className="font-mono-do text-[10.5px] font-semibold uppercase tracking-[0.1em] text-fg-1">
-          {label}
-        </span>
+        <span className="font-mono-do text-[10.5px] font-semibold uppercase tracking-[0.1em] text-fg-1">{label}</span>
       </div>
       {children}
     </>
@@ -28,19 +32,15 @@ function MobileSection({ label, color, children }: { label: string; color: strin
 function BottomNav() {
   const [active, setActive] = useState("Stream");
   const items = [
-    { label: "Stream", icon: <Icons.flash size={16} /> },
-    { label: "Day",    icon: <Icons.today size={16} /> },
+    { label: "Stream",    icon: <Icons.flash size={16} /> },
+    { label: "Day",       icon: <Icons.today size={16} /> },
     { label: "Assistant", icon: <Sparkle size={16} /> },
-    { label: "Me",     icon: <Icons.user size={16} /> },
+    { label: "Me",        icon: <Icons.user size={16} /> },
   ];
   return (
     <div
       className="absolute bottom-0 left-0 right-0 flex-shrink-0"
-      style={{
-        background: tokens.bg1,
-        borderTop: `1px solid ${tokens.line}`,
-        paddingBottom: "env(safe-area-inset-bottom)",
-      }}
+      style={{ background: tokens.bg1, borderTop: `1px solid ${tokens.line}`, paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <div className="flex items-center justify-around pt-2.5 pb-2">
         {items.map(({ label, icon }) => (
@@ -60,92 +60,123 @@ function BottomNav() {
 }
 
 export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
+  const { data: session } = useSession();
+  const router = useRouter();
+  const [activeFilter, setActiveFilter] = useState<FilterValue>("All");
+  const { tasks, toggleTask, sendDraft, skipDraft } = useAppTasks();
+  const { data: meetings = [] } = useMeetings();
+
+  // Redirect to login if unauthenticated
+  if (!session && typeof window !== "undefined") {
+    router.replace("/login");
+    return null;
+  }
+
+  const openTasks = tasks.filter(t => t.status !== "done");
+  const hotCount  = tasks.filter(t => t.priority === "hot" && t.status !== "done").length;
+  const todayCount = tasks.filter(t => t.bucket === "today" && t.status !== "done").length;
+  const needReply = tasks.filter(t => t.aiDraft?.state === "proposed").length;
+
+  function applyFilter(t: Task): boolean {
+    if (activeFilter === "Hot")      return t.priority === "hot" && t.status !== "done";
+    if (activeFilter === "Today")    return t.bucket === "today" && t.status !== "done";
+    if (activeFilter === "Personal") return (t.source === "personal" || t.source === "manual") && t.status !== "done";
+    return t.status !== "done";
+  }
+
+  // Meeting task IDs to exclude from flat list
+  const meetingTaskIds = new Set(meetings.flatMap(m => m.tasks.map((t: any) => t.id)));
+  const showMeetings = activeFilter === "All" || activeFilter === "Meetings";
+
+  const filtered = tasks.filter(applyFilter).filter(t => t.source !== "granola" || !meetingTaskIds.has(t.id));
+  const hotTasks   = filtered.filter(t => t.priority === "hot");
+  const todayTasks = filtered.filter(t => t.bucket === "today" && t.priority !== "hot");
+  const otherTasks = filtered.filter(t => t.bucket !== "today" && t.priority !== "hot");
+
+  const filters = [
+    { label: "All" as FilterValue,      count: openTasks.length },
+    { label: "Hot" as FilterValue,      count: hotCount },
+    { label: "Today" as FilterValue,    count: todayCount },
+    { label: "Meetings" as FilterValue, count: meetings.filter(m => m.tasks.some((t: any) => t.status !== "done")).length },
+    { label: "Personal" as FilterValue, count: tasks.filter(t => (t.source === "personal" || t.source === "manual") && t.status !== "done").length },
+  ];
+
+  const userInitial = session?.user?.name?.[0]?.toUpperCase() ?? session?.user?.email?.[0]?.toUpperCase() ?? "?";
+
   return (
     <div
       className="flex flex-col overflow-hidden relative"
       style={frameMode ? {
-        width: 390,
-        height: 844,
-        background: tokens.bg0,
-        color: tokens.fg0,
-        borderRadius: 36,
-        border: `1px solid ${tokens.line2}`,
+        width: 390, height: 844, background: tokens.bg0, color: tokens.fg0, borderRadius: 36, border: `1px solid ${tokens.line2}`,
       } : {
-        width: "100%",
-        height: "100%",
-        background: tokens.bg0,
-        color: tokens.fg0,
+        width: "100%", height: "100%", background: tokens.bg0, color: tokens.fg0,
       }}
     >
-      {/* Show fake status bar only in frame/desktop preview mode */}
       {frameMode && <StatusBar />}
 
-      {/* App header — add safe-area top padding on real device */}
+      {/* App header */}
       <div
         className="px-5 pb-3.5 flex-shrink-0"
         style={{ paddingTop: frameMode ? 8 : "max(env(safe-area-inset-top), 16px)" }}
       >
         <div className="flex items-center justify-between mb-2.5">
-          <span
-            className="font-display text-[22px] font-semibold tracking-[-0.02em]"
-          >
-            do.
-          </span>
+          <span className="font-display text-[22px] font-semibold tracking-[-0.02em]">do.</span>
           <div className="flex gap-2.5 items-center">
-            <div
-              className="w-8 h-8 rounded-full flex items-center justify-center"
-              style={{ background: tokens.bg2, border: `1px solid ${tokens.line}` }}
-            >
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: tokens.bg2, border: `1px solid ${tokens.line}` }}>
               <Sparkle size={14} />
             </div>
-            <Avatar initial="M" size={32} />
+            <Avatar initial={userInitial} size={32} />
           </div>
         </div>
         <div className="font-mono-do text-[10.5px] text-fg-3 uppercase tracking-[0.08em] mb-1">
-          Thu 24 Apr · 23 open
+          {new Date().toLocaleDateString("en-AU", { weekday: "short", day: "numeric", month: "short" })} · {openTasks.length} open
         </div>
-        <h1 style={{ fontSize: 28 }}>3 need reply</h1>
+        <h1 style={{ fontSize: 28 }}>{needReply > 0 ? `${needReply} need reply` : `${openTasks.length} tasks open`}</h1>
       </div>
 
-      <FilterPills />
+      {/* Filter pills */}
+      <FilterPills filters={filters} active={activeFilter} onFilter={setActiveFilter} />
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-auto px-3.5 pb-[100px]">
-        <MobileMeetingCard />
 
-        <MobileSection label="Now" color={tokens.oxblood}>
-          <MobileTask
-            priority="hot"
-            src="slack"
-            title="Reply to Sara — Q2 budget"
-            meta="2h ago · before 3pm"
-            defaultExpanded
-            draft="Hi Sara — here's Q2: Revenue $1.2M (+18% QoQ), margin 34%. Full deck attached. Ping if you need raw figures before 3."
-          />
-          <MobileTask
-            priority="hot"
-            src="outlook"
-            title="Send design deck to Marcus"
-            meta="Due 5:00 PM"
-          />
-        </MobileSection>
+        {/* Meeting cards */}
+        {showMeetings && meetings
+          .filter(m => m.tasks.some((t: any) => t.status !== "done"))
+          .map((meeting: any) => (
+            <MobileMeetingCard key={meeting.id} meeting={{ ...meeting, tasks: meeting.tasks.map((t: any) => ({ ...t, status: tasks.find(ut => ut.id === t.id)?.status ?? t.status })) }} onToggle={toggleTask} />
+          ))}
 
-        <MobileSection label="Today" color={tokens.bronze}>
-          <MobileTask src="granola" title="Confirm launch date"   meta="Product sync · 11:32" />
-          <MobileTask src="granola" title="Review API spec §3"    meta="Product sync · 11:32" />
-          <MobileTask src="slack"   title="Review PR #842"        meta="from Jen · #eng" />
-          <MobileTask src="outlook" title="Approve Q1 expenses"   meta="HR · 1 day" />
-        </MobileSection>
+        {hotTasks.length > 0 && (
+          <MobileSection label="Hot" color={tokens.oxblood}>
+            {hotTasks.map(t => <MobileTask key={t.id} task={t} onToggle={() => toggleTask(t.id)} onSendDraft={(b) => sendDraft(t.id, b)} onSkipDraft={() => skipDraft(t.id)} />)}
+          </MobileSection>
+        )}
+
+        {todayTasks.length > 0 && (
+          <MobileSection label="Today" color={tokens.bronze}>
+            {todayTasks.map(t => <MobileTask key={t.id} task={t} onToggle={() => toggleTask(t.id)} onSendDraft={(b) => sendDraft(t.id, b)} onSkipDraft={() => skipDraft(t.id)} />)}
+          </MobileSection>
+        )}
+
+        {otherTasks.length > 0 && (
+          <MobileSection label="Backlog" color={tokens.fg3}>
+            {otherTasks.map(t => <MobileTask key={t.id} task={t} onToggle={() => toggleTask(t.id)} onSendDraft={(b) => sendDraft(t.id, b)} onSkipDraft={() => skipDraft(t.id)} />)}
+          </MobileSection>
+        )}
+
+        {filtered.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-16 gap-2">
+            <span className="font-mono-do text-[11px] text-fg-3">— nothing here —</span>
+          </div>
+        )}
       </div>
 
       {/* FAB */}
       <div className="absolute" style={{ bottom: 100, right: 20 }}>
         <button
           className="w-14 h-14 rounded-full flex items-center justify-center text-[#1a1108]"
-          style={{
-            background: `linear-gradient(135deg, ${tokens.bronze}, #8a5a1e)`,
-            boxShadow: "0 6px 20px rgba(200,137,63,0.35), inset 0 1px 0 rgba(255,255,255,0.2)",
-          }}
+          style={{ background: `linear-gradient(135deg, ${tokens.bronze}, #8a5a1e)`, boxShadow: "0 6px 20px rgba(200,137,63,0.35), inset 0 1px 0 rgba(255,255,255,0.2)" }}
         >
           <Icons.plus size={22} />
         </button>
