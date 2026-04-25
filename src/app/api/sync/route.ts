@@ -217,12 +217,16 @@ export async function POST(req: Request) {
             console.warn("[granola] ANTHROPIC_API_KEY not set — skipping extraction");
           }
 
+          const meetingDate = new Date(getNoteDate(note)).toLocaleDateString("en-AU", { day: "2-digit", month: "short" });
+          const meetingMeta = `${note.title ?? "Meeting"} · ${meetingDate}`;
+
           if (actions.length > 0) {
             for (const action of actions) {
               await prisma.task.create({
                 data: {
                   userId,
                   title: action.title,
+                  meta: meetingMeta,
                   source: "granola",
                   sourceRef: note.id,
                   bucket: "inbox",
@@ -239,6 +243,7 @@ export async function POST(req: Request) {
               data: {
                 userId,
                 title: `Review notes: ${note.title ?? "Meeting"}`,
+                meta: meetingMeta,
                 source: "granola",
                 sourceRef: note.id,
                 bucket: "inbox",

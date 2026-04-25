@@ -122,8 +122,15 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
     setEditing(true);
   }
 
+  function handleDragStart(e: React.DragEvent) {
+    e.dataTransfer.setData("taskId", task.id);
+    e.dataTransfer.effectAllowed = "move";
+  }
+
   return (
     <div
+      draggable
+      onDragStart={handleDragStart}
       className={cn(
         "flex items-start gap-2.5 px-2.5 py-[9px] border-b border-line transition-colors duration-100",
         hovered && !done ? "bg-bg-2" : "bg-transparent"
@@ -131,6 +138,13 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      <div
+        className="mt-1 flex-shrink-0 cursor-grab active:cursor-grabbing transition-opacity"
+        style={{ opacity: hovered ? 0.4 : 0, fontSize: 10, letterSpacing: "-1px", lineHeight: 1, color: "currentColor" }}
+        title="Drag to reschedule"
+      >
+        ⠿
+      </div>
       <div className="mt-0.5">
         <Checkbox checked={done} onChange={onToggle} />
       </div>

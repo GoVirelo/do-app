@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { NewTaskModal } from "./NewTaskModal";
 import { useAppTasks } from "@/hooks/useAppTasks";
-import { useMeetings, useCreateTask } from "@/hooks/useTasks";
+import { useMeetings, useCreateTask, useUpdateTask } from "@/hooks/useTasks";
 import { useQueryClient } from "@tanstack/react-query";
 import { TopBar } from "@/components/ui/TopBar";
 import { Sidebar, type SidebarFilter } from "@/components/ui/Sidebar";
@@ -24,6 +24,12 @@ type Props = {
 
 export function StreamView({ onViewChange }: Props) {
   const { tasks, toggleTask, skipDraft, sendDraft, triggerSync, isSyncing } = useAppTasks();
+  const updateTask = useUpdateTask();
+
+  function moveTask(taskId: string, bucket: string) {
+    updateTask.mutate({ id: taskId, bucket: bucket as any });
+  }
+
   const { data: meetings = [] } = useMeetings();
   const createTask = useCreateTask();
   const qc = useQueryClient();
@@ -263,7 +269,7 @@ export function StreamView({ onViewChange }: Props) {
           {/* Flat tasks from other sources */}
           {inboxTasks.length > 0 && (
             <>
-              <SectionHeader label="Backlog" color={tokens.fg2} count={inboxTasks.filter(t => t.status === "open").length} />
+              <SectionHeader label="Backlog" color={tokens.fg2} count={inboxTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "inbox")} />
               {inboxTasks.map((t) => (
                 <TaskRow
                   key={t.id}
@@ -278,7 +284,7 @@ export function StreamView({ onViewChange }: Props) {
 
           {todayTasks.length > 0 && (
             <>
-              <SectionHeader label="Today" color={tokens.bronze} count={todayTasks.filter(t => t.status === "open").length} />
+              <SectionHeader label="Today" color={tokens.bronze} count={todayTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "today")} />
               {todayTasks.map((t) => (
                 <TaskRow
                   key={t.id}
@@ -293,7 +299,7 @@ export function StreamView({ onViewChange }: Props) {
 
           {weekTasks.length > 0 && (
             <>
-              <SectionHeader label="This week" color={tokens.steel} count={weekTasks.filter(t => t.status === "open").length} />
+              <SectionHeader label="This week" color={tokens.steel} count={weekTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "upcoming")} />
               {weekTasks.map((t) => (
                 <TaskRow
                   key={t.id}
