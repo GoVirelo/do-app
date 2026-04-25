@@ -68,7 +68,10 @@ export function StreamView({ onViewChange }: Props) {
   // Apply sidebar filter
   function applyFilter(t: Task) {
     if (!filter) return true;
-    if (filter.type === "source") return t.source === filter.value;
+    if (filter.type === "source") {
+      if (filter.value === "personal") return t.source === "personal" || t.source === "manual";
+      return t.source === filter.value;
+    }
     if (filter.value === "today") return t.bucket === "today";
     if (filter.value === "upcoming") return t.bucket === "this_week";
     if (filter.value === "done") return t.status === "done";
