@@ -184,7 +184,7 @@ export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
   function applyFilter(t: Task): boolean {
     if (activeFilter === "Hot")      return t.priority === "hot" && t.status !== "done";
     if (activeFilter === "Today")    return t.bucket === "today" && t.status !== "done";
-    if (activeFilter === "Personal") return (t.source === "personal" || t.source === "manual") && t.status !== "done";
+    if (activeFilter === "Personal") return t.source === "personal" && t.status !== "done";
     return t.status !== "done";
   }
 
@@ -202,7 +202,7 @@ export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
     { label: "Hot" as FilterValue,      count: hotCount },
     { label: "Today" as FilterValue,    count: todayCount },
     { label: "Meetings" as FilterValue, count: meetings.filter(m => m.tasks.some((t: any) => t.status !== "done")).length },
-    { label: "Personal" as FilterValue, count: tasks.filter(t => (t.source === "personal" || t.source === "manual") && t.status !== "done").length },
+    { label: "Personal" as FilterValue, count: tasks.filter(t => t.source === "personal" && t.status !== "done").length },
   ];
 
   const userInitial = session?.user?.name?.[0]?.toUpperCase() ?? session?.user?.email?.[0]?.toUpperCase() ?? "?";
