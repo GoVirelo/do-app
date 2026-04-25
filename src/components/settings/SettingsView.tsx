@@ -422,7 +422,6 @@ export function SettingsView({ onViewChange }: Props) {
               </>
             )}
           </Section>
-          </Section>
 
           {/* Danger zone */}
           <Section title="Account">
