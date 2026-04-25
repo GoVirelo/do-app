@@ -4,7 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { tokens } from "@/lib/tokens";
 
-type Props = { onSuccess: (email: string, requiresTOTP: boolean) => void };
+type Props = { onSuccess: (email: string, requiresTOTP: boolean, password: string) => void };
 
 function OAuthButton({ icon, label, onClick }: { icon: React.ReactNode; label: string; onClick?: () => void }) {
   return (
@@ -75,8 +75,7 @@ export function SignInForm({ onSuccess }: Props) {
       }
 
       if (data.requiresTOTP) {
-        // Has 2FA — hand off to 2FA screen, sign in will complete there
-        onSuccess(email, true);
+        onSuccess(email, true, password);
         return;
       }
 
@@ -90,7 +89,7 @@ export function SignInForm({ onSuccess }: Props) {
       if (result?.error) {
         setError("Invalid email or password.");
       } else {
-        onSuccess(email, false);
+        onSuccess(email, false, password);
       }
     } catch {
       setError("Something went wrong. Please try again.");

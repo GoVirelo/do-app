@@ -11,6 +11,7 @@ type Step = "signin" | "2fa";
 export function LoginView() {
   const [step, setStep] = useState<Step>("signin");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const router = useRouter();
 
   return (
@@ -63,9 +64,10 @@ export function LoginView() {
         {/* Step content */}
         {step === "signin" ? (
           <SignInForm
-            onSuccess={(e, requiresTOTP) => {
+            onSuccess={(e, requiresTOTP, pw) => {
               setEmail(e);
               if (requiresTOTP) {
+                setPassword(pw);
                 setStep("2fa");
               } else {
                 router.push("/");
@@ -75,6 +77,7 @@ export function LoginView() {
         ) : (
           <TwoFactorForm
             email={email}
+            password={password}
             onSuccess={() => router.push("/")}
             onBack={() => setStep("signin")}
           />

@@ -1,18 +1,20 @@
 "use client";
 
 import { useRef, useState, useEffect, useCallback } from "react";
+import { signIn } from "next-auth/react";
 import { tokens } from "@/lib/tokens";
 import { Sparkle } from "@/components/ui/Sparkle";
 
 type Props = {
   email: string;
+  password: string;
   onSuccess: () => void;
   onBack: () => void;
 };
 
 const PERIOD = 30;
 
-export function TwoFactorForm({ email, onSuccess, onBack }: Props) {
+export function TwoFactorForm({ email, password, onSuccess, onBack }: Props) {
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,15 +32,24 @@ export function TwoFactorForm({ email, onSuccess, onBack }: Props) {
     return () => clearInterval(id);
   }, []);
 
-  const submit = useCallback((code: string) => {
+  const submit = useCallback(async (code: string) => {
     setLoading(true);
     setError("");
-    // Demo: accept any 6-digit code
-    setTimeout(() => {
-      setLoading(false);
+    const result = await signIn("credentials", {
+      email,
+      password,
+      totpCode: code,
+      redirect: false,
+    });
+    setLoading(false);
+    if (result?.error) {
+      setError("Invalid code. Please try again.");
+      setDigits(["", "", "", "", "", ""]);
+      inputs.current[0]?.focus();
+    } else {
       onSuccess();
-    }, 600);
-  }, [onSuccess]);
+    }
+  }, [email, password, onSuccess]);
 
   const handleChange = (i: number, val: string) => {
     const ch = val.replace(/\D/g, "").slice(-1);
