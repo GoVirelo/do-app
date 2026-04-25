@@ -266,40 +266,35 @@ export function StreamView({ onViewChange }: Props) {
             );
           })}
 
-          {/* Flat tasks from other sources */}
-          {inboxTasks.length > 0 && (
-            <>
-              <SectionHeader label="Backlog" color={tokens.fg2} count={inboxTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "inbox")} />
-              {inboxTasks.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  task={t}
-                  onToggle={() => toggleTask(t.id)}
-                  onSkipDraft={() => skipDraft(t.id)}
-                  onSendDraft={(body) => sendDraft(t.id, body)}
-                />
-              ))}
-            </>
-          )}
+          {/* Flat tasks — section headers always visible as drop targets */}
+          <>
+            <SectionHeader label="Backlog" color={tokens.fg2} count={inboxTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "inbox")} />
+            {inboxTasks.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                onToggle={() => toggleTask(t.id)}
+                onSkipDraft={() => skipDraft(t.id)}
+                onSendDraft={(body) => sendDraft(t.id, body)}
+              />
+            ))}
+          </>
 
-          {todayTasks.length > 0 && (
-            <>
-              <SectionHeader label="Today" color={tokens.bronze} count={todayTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "today")} />
-              {todayTasks.map((t) => (
-                <TaskRow
-                  key={t.id}
-                  task={t}
-                  onToggle={() => toggleTask(t.id)}
-                  onSkipDraft={() => skipDraft(t.id)}
-                  onSendDraft={(body) => sendDraft(t.id, body)}
-                />
-              ))}
-            </>
-          )}
+          <>
+            <SectionHeader label="Today" color={tokens.bronze} count={todayTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "today")} />
+            {todayTasks.map((t) => (
+              <TaskRow
+                key={t.id}
+                task={t}
+                onToggle={() => toggleTask(t.id)}
+                onSkipDraft={() => skipDraft(t.id)}
+                onSendDraft={(body) => sendDraft(t.id, body)}
+              />
+            ))}
+          </>
 
-          {weekTasks.length > 0 && (
-            <>
-              <SectionHeader label="This week" color={tokens.steel} count={weekTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "upcoming")} />
+          <>
+            <SectionHeader label="This week" color={tokens.steel} count={weekTasks.filter(t => t.status === "open").length} onDropTask={(id) => moveTask(id, "upcoming")} />
               {weekTasks.map((t) => (
                 <TaskRow
                   key={t.id}
@@ -309,8 +304,7 @@ export function StreamView({ onViewChange }: Props) {
                   onSendDraft={(body) => sendDraft(t.id, body)}
                 />
               ))}
-            </>
-          )}
+          </>
 
           <div className="px-3.5 py-10 text-center">
             <span className="font-mono-do text-[11px] text-fg-3">— end of stream —</span>
