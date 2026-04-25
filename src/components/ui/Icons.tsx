@@ -65,4 +65,10 @@ export const Icons = {
       <path d="M11 11l3 3"/>
     </svg>
   ),
+  sync: ({ size = 14, className }: IconProps) => (
+    <svg width={size} height={size} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M13 3a6 6 0 0 1 0 10M3 13a6 6 0 0 1 0-10"/>
+      <path d="M13 3l-2 2M13 3l2-2M3 13l2-2M3 13l-2 2"/>
+    </svg>
+  ),
 };

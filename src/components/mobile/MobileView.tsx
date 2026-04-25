@@ -160,7 +160,7 @@ export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
   const [activeNav, setActiveNav] = useState("Stream");
   const [activeFilter, setActiveFilter] = useState<FilterValue>("All");
   const [showNewTask, setShowNewTask] = useState(false);
-  const { tasks, toggleTask, sendDraft, skipDraft } = useAppTasks();
+  const { tasks, toggleTask, sendDraft, skipDraft, triggerSync, isSyncing } = useAppTasks();
   const { data: meetings = [] } = useMeetings();
 
   if (status === "unauthenticated") {
@@ -236,6 +236,15 @@ export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
         <div className="flex items-center justify-between mb-2.5">
           <span className="font-display text-[22px] font-semibold tracking-[-0.02em]">do.</span>
           <div className="flex gap-2.5 items-center">
+            <button
+              onClick={() => triggerSync()}
+              className="w-8 h-8 rounded-full flex items-center justify-center transition-opacity"
+              style={{ background: tokens.bg2, border: `1px solid ${tokens.line}`, opacity: isSyncing ? 0.5 : 1 }}
+              disabled={isSyncing}
+              title="Sync"
+            >
+              <Icons.sync size={14} className={isSyncing ? "animate-spin" : ""} />
+            </button>
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: tokens.bg2, border: `1px solid ${tokens.line}` }}>
               <Sparkle size={14} />
             </div>
