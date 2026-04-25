@@ -10,7 +10,6 @@ export async function GET() {
     where: { userId: session.user.id },
     include: {
       tasks: {
-        where: { status: { not: "done" } },
         orderBy: { createdAt: "asc" },
       },
     },

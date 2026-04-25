@@ -94,7 +94,10 @@ export function useUpdateTask() {
     onError: (_err, _vars, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(["tasks"], ctx.prev);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["meetings"] });
+    },
   });
 }
 
