@@ -68,6 +68,7 @@ type Props = { activeItem?: string };
 
 export function Sidebar({ activeItem = "Stream" }: Props) {
   const router = useRouter();
+  const [collapsed, setCollapsed] = useState(false);
   const [sourcesCollapsed, setSourcesCollapsed] = useState(false);
   const [viewsCollapsed, setViewsCollapsed] = useState(false);
 
@@ -102,8 +103,43 @@ export function Sidebar({ activeItem = "Stream" }: Props) {
     personal: openTasks.filter(t => t.source === "manual").length,
   };
 
+  if (collapsed) {
+    return (
+      <div
+        className="flex flex-col items-center py-3.5 gap-4 flex-shrink-0 border-r border-line"
+        style={{ width: 44, background: "var(--bg-1)" }}
+      >
+        <button
+          onClick={() => setCollapsed(false)}
+          className="text-fg-3 hover:text-fg-1 transition-colors"
+          title="Expand nav"
+        >
+          <Icons.flash size={14} />
+        </button>
+        <div className="flex-1" />
+        <button onClick={() => router.push("/connections")} className="text-fg-3 hover:text-fg-1 transition-colors" title="Connections">
+          <Icons.flash size={13} />
+        </button>
+        <button onClick={() => router.push("/settings")} className="text-fg-3 hover:text-fg-1 transition-colors" title="Settings">
+          <Icons.settings size={13} />
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-[200px] bg-bg-1 border-r border-line px-2.5 py-3.5 flex flex-col gap-0.5 overflow-auto flex-shrink-0">
+      <div className="flex items-center justify-between mb-1">
+        <span className="font-mono-do text-[10px] text-fg-3 uppercase tracking-[0.08em] px-2.5">Nav</span>
+        <button
+          onClick={() => setCollapsed(true)}
+          className="text-fg-3 hover:text-fg-1 transition-colors px-2"
+          title="Collapse"
+        >
+          ‹
+        </button>
+      </div>
+
       <SidebarItem icon={<Icons.flash />} label="Stream" count={counts.stream} active={activeItem === "Stream"} />
       <SidebarItem icon={<Icons.today />} label="Today" count={counts.today} />
       <SidebarItem icon={<Icons.cal />} label="Upcoming" count={counts.upcoming} />
