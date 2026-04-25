@@ -41,7 +41,8 @@
       "Bash(python3 -c \"import os; dirs = os.listdir\\('/Users/richardd'\\); print\\([d for d in dirs if 'do' in d.lower\\(\\)]\\)\")",
       "Bash(grep -E \"\\\\.\\(ts|tsx\\)$\")",
       "Bash(node node_modules/next/dist/bin/next build)",
-      "Bash(npx prisma *)"
+      "Bash(npx prisma *)",
+      "Bash(npx vercel *)"
     ]
   }
 }

@@ -10,6 +10,7 @@ export interface Task {
   bucket: string;
   source: string;
   sourceRef?: string | null;
+  meta?: string | null;
   dueAt?: string | null;
   scheduledStart?: string | null;
   scheduledEnd?: string | null;
