@@ -7,16 +7,12 @@ export type Task = {
   priority: "normal" | "hot";
   bucket: "inbox" | "now" | "today" | "this_week" | "scheduled";
   source: Source;
-  sourceRef: {
-    granola?: { meetingId: string; utteranceId?: string; quote?: string };
-    slack?: { channelId: string; ts: string; threadTs?: string };
-    outlook?: { messageId?: string; eventId?: string };
-  };
+  sourceRef?: string;
+  meta?: string;
   createdAt: Date;
   dueAt?: Date;
   scheduledBlock?: { start: Date; end: Date };
   assignee: string;
-  meta?: string;
   aiDraft?: AIDraft;
 };
 

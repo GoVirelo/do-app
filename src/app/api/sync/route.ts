@@ -90,12 +90,25 @@ export async function POST(req: Request) {
         });
         if (exists) continue;
 
+        // Store channelId + threadTs as JSON so we can reply later
+        const slackMeta = JSON.stringify({ channelId: msg.channelId, threadTs: msg.threadTs ?? msg.ts });
+        const channelDisplay = msg.isMention ? msg.channelName : "DM";
+        // Relative time string (e.g. "2h ago")
+        const tsMs = parseFloat(msg.ts) * 1000;
+        const diffMin = Math.round((Date.now() - tsMs) / 60000);
+        const relTime = diffMin < 60 ? `${diffMin}m ago` : diffMin < 1440 ? `${Math.floor(diffMin / 60)}h ago` : `${Math.floor(diffMin / 1440)}d ago`;
+        const metaLine = `${channelDisplay} · ${relTime}`;
+        // Short subject from first meaningful line of message
+        const subject = msg.text.split("\n")[0].slice(0, 60);
+        const taskTitle = `Reply to ${msg.username} — ${subject}`;
+
         const task = await prisma.task.create({
           data: {
             userId,
-            title: msg.text.slice(0, 200),
+            title: taskTitle,
+            meta: metaLine,
             source: "slack",
-            sourceRef: `https://slack.com/channels/${msg.channelId}/p${msg.ts.replace(".", "")}`,
+            sourceRef: slackMeta,
             sourceItemId: msg.id,
             bucket: "inbox",
             priority: "medium",
@@ -106,7 +119,7 @@ export async function POST(req: Request) {
         try {
           const draft = await generateDraftReply(
             msg.text,
-            `Channel: #${msg.channelName}`,
+            `From ${msg.username} in ${channelDisplay}`,
             "slack",
             { email: session.user.email ?? undefined }
           );
@@ -114,7 +127,7 @@ export async function POST(req: Request) {
             data: {
               taskId: task.id,
               body: draft.body,
-              channel: `#${msg.channelName}`,
+              channel: msg.channelName,
             },
           });
         } catch {

@@ -1,10 +1,9 @@
 "use client";
 
-import { useTasks, useUpdateTask, useUpdateDraft, useGenerateDraft, useSync, type Task as ApiTask } from "./useTasks";
+import { useTasks, useUpdateTask, useUpdateDraft, useGenerateDraft, useSync, useSendSlackReply, type Task as ApiTask } from "./useTasks";
 import { useTasksStore } from "@/store/tasks";
 import type { Task } from "@/types";
 
-// Converts API task shape to the legacy Task type used by UI components
 function apiToTask(t: ApiTask): Task {
   return {
     id: t.id,
@@ -13,7 +12,8 @@ function apiToTask(t: ApiTask): Task {
     priority: (t.priority === "hot" ? "hot" : t.priority === "high" ? "high" : t.priority === "low" ? "low" : "normal") as Task["priority"],
     bucket: (t.bucket === "inbox" ? "inbox" : t.bucket === "today" ? "today" : t.bucket === "upcoming" ? "this_week" : t.bucket === "waiting" ? "this_week" : "inbox") as Task["bucket"],
     source: t.source as Task["source"],
-    sourceRef: t.sourceRef ? { slack: { channel: "", ts: "" } } : undefined,
+    meta: t.meta ?? undefined,
+    sourceRef: t.sourceRef ?? undefined,
     createdAt: new Date(t.createdAt),
     dueAt: t.dueAt ? new Date(t.dueAt) : undefined,
     aiDraft: t.aiDraft ? {
@@ -31,6 +31,7 @@ export function useAppTasks() {
   const updateDraft = useUpdateDraft();
   const generateDraft = useGenerateDraft();
   const sync = useSync();
+  const slackReply = useSendSlackReply();
 
   const tasks: Task[] = (apiTasks ?? []).map(apiToTask);
   const usingRealData = true;
@@ -45,9 +46,14 @@ export function useAppTasks() {
     }
   }
 
-  function sendDraft(id: string) {
+  function sendDraft(id: string, editedBody?: string) {
     if (usingRealData) {
-      updateDraft.mutate({ taskId: id, status: "sent" });
+      const task = apiTasks?.find(t => t.id === id);
+      if (task?.source === "slack") {
+        slackReply.mutate({ taskId: id, body: editedBody });
+      } else {
+        updateDraft.mutate({ taskId: id, status: "sent" });
+      }
     } else {
       store.sendDraft(id);
     }

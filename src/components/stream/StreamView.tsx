@@ -270,7 +270,7 @@ export function StreamView({ onViewChange }: Props) {
                   task={t}
                   onToggle={() => toggleTask(t.id)}
                   onSkipDraft={() => skipDraft(t.id)}
-                  onSendDraft={() => sendDraft(t.id)}
+                  onSendDraft={(body) => sendDraft(t.id, body)}
                 />
               ))}
             </>
@@ -285,7 +285,7 @@ export function StreamView({ onViewChange }: Props) {
                   task={t}
                   onToggle={() => toggleTask(t.id)}
                   onSkipDraft={() => skipDraft(t.id)}
-                  onSendDraft={() => sendDraft(t.id)}
+                  onSendDraft={(body) => sendDraft(t.id, body)}
                 />
               ))}
             </>
@@ -300,7 +300,7 @@ export function StreamView({ onViewChange }: Props) {
                   task={t}
                   onToggle={() => toggleTask(t.id)}
                   onSkipDraft={() => skipDraft(t.id)}
-                  onSendDraft={() => sendDraft(t.id)}
+                  onSendDraft={(body) => sendDraft(t.id, body)}
                 />
               ))}
             </>

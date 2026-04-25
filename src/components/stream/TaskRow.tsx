@@ -105,14 +105,22 @@ type Props = {
   task: Task;
   onToggle: () => void;
   onSkipDraft: () => void;
-  onSendDraft: () => void;
+  onSendDraft: (editedBody?: string) => void;
 };
 
 export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
   const [hovered, setHovered] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState("");
   const done = task.status === "done";
   const draft = task.aiDraft;
   const showDraft = draft && draft.state === "proposed";
+  const isSlack = task.source === "slack";
+
+  function startEdit() {
+    setEditBody(draft?.body ?? "");
+    setEditing(true);
+  }
 
   return (
     <div
@@ -147,16 +155,35 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
             className="mt-2 p-2 rounded-r2"
             style={{ background: `linear-gradient(135deg, ${tokens.bronzeSoft}, #2a1d0e)`, border: `1px solid ${tokens.bronzeLine}` }}
           >
-            <div className="flex items-center gap-1.5 mb-1">
+            <div className="flex items-center gap-1.5 mb-1.5">
               <Sparkle size={10} />
               <span className="font-mono-do text-[10px] font-semibold uppercase tracking-[0.06em]" style={{ color: tokens.bronze }}>
-                AI Draft
+  {"AI Draft"}
               </span>
             </div>
-            <p className="text-[12.5px] text-fg-1 leading-relaxed">{draft.body}</p>
+
+            {editing ? (
+              <textarea
+                autoFocus
+                value={editBody}
+                onChange={e => setEditBody(e.target.value)}
+                className="w-full bg-transparent text-[12.5px] text-fg-1 leading-relaxed resize-none outline-none border rounded-r1 p-1.5"
+                style={{ borderColor: tokens.bronzeLine, minHeight: 72 }}
+              />
+            ) : (
+              <p className="text-[12.5px] text-fg-1 leading-relaxed">{draft.body}</p>
+            )}
+
             <div className="flex gap-1.5 mt-2">
-              <Button variant="primary" size="sm" onClick={onSendDraft}>Send</Button>
-              <Button variant="secondary" size="sm">Edit</Button>
+              <Button variant="primary" size="sm" onClick={() => onSendDraft(editing ? editBody : undefined)}>
+                {isSlack ? "Send reply" : "Send"}
+              </Button>
+              {!editing && (
+                <Button variant="secondary" size="sm" onClick={startEdit}>Edit</Button>
+              )}
+              {editing && (
+                <Button variant="ghost" size="sm" onClick={() => setEditing(false)}>Cancel</Button>
+              )}
               <Button variant="ghost" size="sm" onClick={onSkipDraft}>Skip</Button>
             </div>
           </div>
@@ -164,7 +191,7 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
 
         {draft?.state === "sent" && (
           <div className="font-mono-do text-[10.5px] text-[#4a7a5e] mt-1">
-            SENT VIA {task.source.toUpperCase()} · {new Date().toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
+            {isSlack ? "REPLIED IN SLACK" : `SENT VIA ${task.source.toUpperCase()}`} · {new Date().toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
           </div>
         )}
       </div>

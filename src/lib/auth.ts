@@ -38,7 +38,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.SLACK_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: "openid profile email channels:history im:history groups:history",
+          scope: "openid profile email",
+          user_scope: "channels:history im:history groups:history mpim:history search:read",
         },
       },
     }),
@@ -97,12 +98,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (user && (account.provider === "microsoft-entra-id" || account.provider === "slack")) {
           const provider =
             account.provider === "microsoft-entra-id" ? "outlook" : "slack";
+          // For Slack OAuth v2, user-level token is in authed_user, not the top-level access_token
+          const slackUserToken = (account as any).authed_user?.access_token;
+          const accessToken =
+            provider === "slack" ? (slackUserToken ?? account.access_token ?? "") : (account.access_token ?? "");
           await prisma.integration.upsert({
             where: { userId_provider: { userId: user.id, provider } },
             create: {
               userId: user.id,
               provider,
-              accessToken: account.access_token ?? "",
+              accessToken,
               refreshToken: account.refresh_token,
               expiresAt: account.expires_at
                 ? new Date(account.expires_at * 1000)
@@ -110,7 +115,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               scope: account.scope,
             },
             update: {
-              accessToken: account.access_token ?? "",
+              accessToken,
               refreshToken: account.refresh_token,
               expiresAt: account.expires_at
                 ? new Date(account.expires_at * 1000)

@@ -144,6 +144,22 @@ export function useUpdateDraft() {
   });
 }
 
+export function useSendSlackReply() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ taskId, body }: { taskId: string; body?: string }) => {
+      const res = await fetch(`/api/tasks/${taskId}/reply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ body }),
+      });
+      if (!res.ok) throw new Error("Failed to send Slack reply");
+      return res.json();
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
+  });
+}
+
 export interface ApiMeeting {
   id: string;
   title: string;
