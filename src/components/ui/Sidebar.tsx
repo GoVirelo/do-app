@@ -53,24 +53,40 @@ function SidebarSection({
   );
 }
 
-function SidebarSource({ kind, label, count }: { kind: Source; label: string; count: number }) {
+function SidebarSource({ kind, label, count, active, onClick }: { kind: Source; label: string; count: number; active?: boolean; onClick?: () => void }) {
   const src = sourceTokens[kind];
   return (
-    <div className="flex items-center gap-[9px] px-2.5 py-[5px] text-[12.5px] text-fg-1 cursor-pointer rounded-r2 hover:bg-bg-2">
+    <button
+      onClick={onClick}
+      className={cn("w-full flex items-center gap-[9px] px-2.5 py-[5px] text-[12.5px] rounded-r2 transition-colors border",
+        active ? "bg-bg-3 border-line-2 text-fg-0 font-medium" : "border-transparent text-fg-1 hover:bg-bg-2"
+      )}
+    >
       <span className="w-[7px] h-[7px] rounded-full flex-shrink-0" style={{ background: src.fg }} />
-      <span className="flex-1">{label}</span>
+      <span className="flex-1 text-left">{label}</span>
       {count > 0 && <span className="font-mono-do text-[10.5px] text-fg-3">{count}</span>}
-    </div>
+    </button>
   );
 }
 
-type Props = { activeItem?: string };
+export type SidebarFilter = { type: "bucket" | "source"; value: string } | null;
 
-export function Sidebar({ activeItem = "Stream" }: Props) {
+type Props = {
+  activeItem?: string;
+  filter?: SidebarFilter;
+  onFilter?: (f: SidebarFilter) => void;
+};
+
+export function Sidebar({ activeItem = "Stream", filter, onFilter }: Props) {
   const router = useRouter();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [sourcesCollapsed, setSourcesCollapsed] = useState(false);
   const [viewsCollapsed, setViewsCollapsed] = useState(false);
+
+  function toggle(type: "bucket" | "source", value: string) {
+    if (filter?.type === type && filter.value === value) onFilter?.(null);
+    else onFilter?.({ type, value });
+  }
 
   // Fetch open tasks for counts
   const { data: openTasks = [] } = useQuery({
@@ -140,16 +156,16 @@ export function Sidebar({ activeItem = "Stream" }: Props) {
         </button>
       </div>
 
-      <SidebarItem icon={<Icons.flash />} label="Stream" count={counts.stream} active={activeItem === "Stream"} />
-      <SidebarItem icon={<Icons.today />} label="Today" count={counts.today} />
-      <SidebarItem icon={<Icons.cal />} label="Upcoming" count={counts.upcoming} />
-      <SidebarItem icon={<Icons.done />} label="Done" count={counts.done || undefined} dim />
+      <SidebarItem icon={<Icons.flash />} label="Stream" count={counts.stream} active={activeItem === "Stream" && !filter} onClick={() => onFilter?.(null)} />
+      <SidebarItem icon={<Icons.today />} label="Today" count={counts.today} active={filter?.type === "bucket" && filter.value === "today"} onClick={() => toggle("bucket", "today")} />
+      <SidebarItem icon={<Icons.cal />} label="Upcoming" count={counts.upcoming} active={filter?.type === "bucket" && filter.value === "upcoming"} onClick={() => toggle("bucket", "upcoming")} />
+      <SidebarItem icon={<Icons.done />} label="Done" count={counts.done || undefined} active={filter?.type === "bucket" && filter.value === "done"} dim onClick={() => toggle("bucket", "done")} />
 
       <SidebarSection label="Sources" collapsed={sourcesCollapsed} onToggle={() => setSourcesCollapsed(v => !v)}>
-        <SidebarSource kind="granola" label="Granola" count={counts.granola} />
-        <SidebarSource kind="slack" label="Slack" count={counts.slack} />
-        <SidebarSource kind="outlook" label="Outlook" count={counts.outlook} />
-        <SidebarSource kind="personal" label="Personal" count={counts.personal} />
+        <SidebarSource kind="granola" label="Granola" count={counts.granola} active={filter?.type === "source" && filter.value === "granola"} onClick={() => toggle("source", "granola")} />
+        <SidebarSource kind="slack" label="Slack" count={counts.slack} active={filter?.type === "source" && filter.value === "slack"} onClick={() => toggle("source", "slack")} />
+        <SidebarSource kind="outlook" label="Outlook" count={counts.outlook} active={filter?.type === "source" && filter.value === "outlook"} onClick={() => toggle("source", "outlook")} />
+        <SidebarSource kind="personal" label="Personal" count={counts.personal} active={filter?.type === "source" && filter.value === "manual"} onClick={() => toggle("source", "manual")} />
       </SidebarSection>
 
       <SidebarSection label="Views" collapsed={viewsCollapsed} onToggle={() => setViewsCollapsed(v => !v)}>

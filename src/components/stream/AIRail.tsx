@@ -13,7 +13,7 @@ interface Message {
 
 export function AIRail() {
   const qc = useQueryClient();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);

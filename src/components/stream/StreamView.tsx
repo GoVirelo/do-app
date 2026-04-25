@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { NewTaskModal } from "./NewTaskModal";
 import { useAppTasks } from "@/hooks/useAppTasks";
 import { useMeetings, useCreateTask } from "@/hooks/useTasks";
 import { useQueryClient } from "@tanstack/react-query";
 import { TopBar } from "@/components/ui/TopBar";
-import { Sidebar } from "@/components/ui/Sidebar";
+import { Sidebar, type SidebarFilter } from "@/components/ui/Sidebar";
 import { Button } from "@/components/ui/Button";
 import { Icons } from "@/components/ui/Icons";
 import { SectionHeader } from "./SectionHeader";
@@ -16,7 +16,7 @@ import { Avatar } from "@/components/ui/Avatar";
 import { SourceBadge } from "@/components/ui/SourceBadge";
 import { Sparkle } from "@/components/ui/Sparkle";
 import { tokens } from "@/lib/tokens";
-import type { Task } from "@/types";
+import type { Task, Source } from "@/types";
 
 type Props = {
   onViewChange: (v: string) => void;
@@ -30,6 +30,7 @@ export function StreamView({ onViewChange }: Props) {
   const [showNewTask, setShowNewTask] = useState(false);
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newTitle, setNewTitle] = useState("");
+  const [filter, setFilter] = useState<SidebarFilter>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   async function handleAddTask(meetingId: string) {
@@ -46,8 +47,32 @@ export function StreamView({ onViewChange }: Props) {
     setAddingTo(null);
   }
 
+  async function handleChangeMeetingSource(meetingId: string, taskIds: string[], source: Source) {
+    await Promise.all(taskIds.map(id =>
+      fetch(`/api/tasks/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source }),
+      })
+    ));
+    qc.invalidateQueries({ queryKey: ["tasks"] });
+    qc.invalidateQueries({ queryKey: ["meetings"] });
+  }
+
+  // Apply sidebar filter
+  function applyFilter(t: Task) {
+    if (!filter) return true;
+    if (filter.type === "source") return t.source === filter.value;
+    if (filter.value === "today") return t.bucket === "today";
+    if (filter.value === "upcoming") return t.bucket === "this_week";
+    if (filter.value === "done") return t.status === "done";
+    return true;
+  }
+
+  const filteredTasks = tasks.filter(applyFilter);
+
   // Non-granola tasks go in the flat list
-  const otherTasks = tasks.filter((t) => t.source !== "granola");
+  const otherTasks = filteredTasks.filter((t) => t.source !== "granola");
 
   // Granola task IDs that belong to a meeting (we show those in meeting cards)
   const meetingTaskIds = new Set(meetings.flatMap((m) => m.tasks.map((t) => t.id)));
@@ -75,7 +100,7 @@ export function StreamView({ onViewChange }: Props) {
       />
 
       <div className="flex flex-1 min-h-0">
-        <Sidebar activeItem="Stream" />
+        <Sidebar activeItem="Stream" filter={filter} onFilter={setFilter} />
 
         <div className="flex-1 min-w-0 overflow-auto" style={{ background: tokens.bg0 }}>
           <div className="px-6 pt-5 pb-3 flex items-baseline justify-between">
@@ -125,7 +150,10 @@ export function StreamView({ onViewChange }: Props) {
                 >
                   {/* Meeting header */}
                   <div className="flex items-center gap-2.5 mb-2">
-                    <SourceBadge kind="granola" />
+                    <SourceBadge
+                      kind={(meeting.tasks[0] ? (tasks.find(t => t.id === meeting.tasks[0].id)?.source ?? "granola") : "granola")}
+                      onChange={(src) => handleChangeMeetingSource(meeting.id, meeting.tasks.map(t => t.id), src)}
+                    />
                     <span className="font-mono-do text-[10.5px] text-fg-3 tracking-[0.05em] uppercase">
                       Meeting · {endTime ? `Ended ${endTime}` : startTime}
                       {durationMin ? ` · ${durationMin} min` : ""}

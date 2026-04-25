@@ -18,24 +18,24 @@ const SCHEDULE_OPTIONS = [
   { label: "This week", bucket: "upcoming", dueAt: null,        color: tokens.steel },
 ] as const;
 
-function bucketLabel(bucket: string, dueAt?: Date | null): { label: string; color: string } {
-  if (bucket === "today")    return { label: "Today",     color: tokens.bronze };
+function bucketLabel(bucket: string, dueAt?: Date | null): { label: string; color: string; active: boolean } {
+  if (bucket === "today")    return { label: "Today",     color: tokens.bronze, active: true };
   if (bucket === "this_week") {
     if (dueAt) {
       const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
       if (dueAt.toDateString() === tomorrow.toDateString())
-        return { label: "Tomorrow", color: "#8a9ab5" };
+        return { label: "Tomorrow", color: "#8a9ab5", active: true };
     }
-    return { label: "This week", color: tokens.steel };
+    return { label: "This week", color: tokens.steel, active: true };
   }
-  return { label: "No date", color: tokens.fg3 };
+  return { label: "No date", color: tokens.fg3, active: false };
 }
 
 export function SchedulePill({ task }: { task: Task }) {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const { label, color } = bucketLabel(task.bucket, task.dueAt);
+  const { label, color, active } = bucketLabel(task.bucket, task.dueAt);
 
   useEffect(() => {
     if (!open) return;
@@ -70,7 +70,12 @@ export function SchedulePill({ task }: { task: Task }) {
       <button
         onClick={() => setOpen(v => !v)}
         className="font-mono-do text-[10px] px-1.5 py-0.5 rounded border transition-colors"
-        style={{ color, borderColor: `${color}44`, background: `${color}11` }}
+        style={{
+          color,
+          borderColor: active ? `${color}66` : `${color}33`,
+          background: active ? `${color}18` : "transparent",
+          opacity: active ? 1 : 0.55,
+        }}
       >
         {label}
       </button>
