@@ -30,6 +30,7 @@ export function NewTaskModal({ onClose }: Props) {
   const [dueLabel, setDueLabel] = useState("No date");
   const [subtasks, setSubtasks] = useState<string[]>([]);
   const [subtaskInput, setSubtaskInput] = useState("");
+  const [personal, setPersonal] = useState(false);
   const [saving, setSaving] = useState(false);
   const titleRef = useRef<HTMLInputElement>(null);
 
@@ -66,7 +67,7 @@ export function NewTaskModal({ onClose }: Props) {
     await fetch("/api/tasks", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title: title.trim(), notes: notes || undefined, priority, bucket, subtasks, dueAt }),
+      body: JSON.stringify({ title: title.trim(), notes: notes || undefined, priority, bucket, subtasks, dueAt, source: personal ? "personal" : "manual" }),
     });
     qc.invalidateQueries({ queryKey: ["tasks"] });
     setSaving(false);
@@ -134,6 +135,22 @@ export function NewTaskModal({ onClose }: Props) {
                   </button>
                 ))}
               </div>
+            </div>
+
+            {/* Personal toggle */}
+            <div className="flex flex-col gap-1.5">
+              <span className="font-mono-do text-[10px] text-fg-3 uppercase tracking-[0.08em]">Type</span>
+              <button
+                onClick={() => setPersonal(v => !v)}
+                className="px-2.5 py-1 text-[11.5px] rounded-r2 border transition-colors"
+                style={{
+                  borderColor: personal ? tokens.plum : tokens.line,
+                  color: personal ? tokens.plum : tokens.fg3,
+                  background: personal ? `${tokens.plum}18` : "transparent",
+                }}
+              >
+                {personal ? "Personal" : "Work"}
+              </button>
             </div>
 
             {/* Date */}
