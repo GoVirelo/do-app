@@ -60,16 +60,23 @@ function BottomNav() {
 }
 
 export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterValue>("All");
   const { tasks, toggleTask, sendDraft, skipDraft } = useAppTasks();
   const { data: meetings = [] } = useMeetings();
 
-  // Redirect to login if unauthenticated
-  if (!session && typeof window !== "undefined") {
+  if (status === "unauthenticated") {
     router.replace("/login");
     return null;
+  }
+
+  if (status === "loading") {
+    return (
+      <div className="w-full h-full flex items-center justify-center" style={{ background: tokens.bg0 }}>
+        <span className="font-mono-do text-[11px] text-fg-3">Loading…</span>
+      </div>
+    );
   }
 
   const openTasks = tasks.filter(t => t.status !== "done");
