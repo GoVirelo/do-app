@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { StatusBar } from "./StatusBar";
@@ -11,8 +11,10 @@ import { Sparkle } from "@/components/ui/Sparkle";
 import { Avatar } from "@/components/ui/Avatar";
 import { Icons } from "@/components/ui/Icons";
 import { tokens } from "@/lib/tokens";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAppTasks } from "@/hooks/useAppTasks";
 import { useMeetings } from "@/hooks/useTasks";
+import { NewTaskModal } from "@/components/stream/NewTaskModal";
 import type { Task } from "@/types";
 
 type FilterValue = "All" | "Hot" | "Today" | "Meetings" | "Personal";
@@ -29,8 +31,7 @@ function MobileSection({ label, color, children }: { label: string; color: strin
   );
 }
 
-function BottomNav() {
-  const [active, setActive] = useState("Stream");
+function BottomNav({ active, onNav }: { active: string; onNav: (v: string) => void }) {
   const items = [
     { label: "Stream",    icon: <Icons.flash size={16} /> },
     { label: "Day",       icon: <Icons.today size={16} /> },
@@ -46,7 +47,7 @@ function BottomNav() {
         {items.map(({ label, icon }) => (
           <button
             key={label}
-            onClick={() => setActive(label)}
+            onClick={() => onNav(label)}
             className="flex flex-col items-center gap-1 transition-colors min-w-[44px] min-h-[44px] justify-center"
             style={{ color: active === label ? tokens.bronze : tokens.fg3 }}
           >
@@ -59,10 +60,106 @@ function BottomNav() {
   );
 }
 
+interface AIChatMessage { role: "user" | "assistant"; content: string; }
+
+function AssistantSheet() {
+  const qc = useQueryClient();
+  const [messages, setMessages] = useState<AIChatMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  async function send() {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    const next: AIChatMessage[] = [...messages, { role: "user", content: text }];
+    setMessages(next);
+    setLoading(true);
+    try {
+      const res = await fetch("/api/ai/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages: next.map(m => ({ role: m.role, content: m.content })) }),
+      });
+      const data = await res.json();
+      setMessages([...next, { role: "assistant", content: data.reply ?? "No response." }]);
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    } catch {
+      setMessages([...next, { role: "assistant", content: "Something went wrong." }]);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col h-full" style={{ background: tokens.bg0 }}>
+      <div className="flex items-center gap-2 px-5 py-4 flex-shrink-0" style={{ borderBottom: `1px solid ${tokens.line}` }}>
+        <Sparkle size={14} />
+        <span className="font-semibold text-[15px]">Assistant</span>
+      </div>
+      <div className="flex-1 overflow-auto px-4 py-3 pb-[100px] flex flex-col gap-3">
+        {messages.length === 0 && (
+          <div className="flex flex-col items-center justify-center h-full gap-2 opacity-40">
+            <Sparkle size={24} />
+            <span className="font-mono-do text-[11px] text-fg-3">Ask anything about your tasks</span>
+          </div>
+        )}
+        {messages.map((m, i) => (
+          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div
+              className="max-w-[80%] px-3 py-2 rounded-r2 text-[13.5px] leading-relaxed"
+              style={{
+                background: m.role === "user" ? tokens.bronze : tokens.bg2,
+                color: m.role === "user" ? "#1a1108" : tokens.fg1,
+              }}
+            >
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div className="flex justify-start">
+            <div className="px-3 py-2 rounded-r2 text-[13px]" style={{ background: tokens.bg2, color: tokens.fg3 }}>
+              Thinking…
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+      <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.line}`, paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}>
+        <div className="flex gap-2 items-end">
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
+            placeholder="Ask or instruct…"
+            rows={1}
+            className="flex-1 rounded-r2 px-3 py-2.5 text-[14px] resize-none outline-none leading-snug"
+            style={{ background: tokens.bg2, border: `1px solid ${tokens.line2}`, color: tokens.fg0, minHeight: 40, maxHeight: 120 }}
+          />
+          <button
+            onClick={send}
+            disabled={!input.trim() || loading}
+            className="w-10 h-10 rounded-r2 flex items-center justify-center flex-shrink-0 disabled:opacity-40"
+            style={{ background: tokens.bronze, color: "#1a1108" }}
+          >
+            <Icons.flash size={16} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [activeNav, setActiveNav] = useState("Stream");
   const [activeFilter, setActiveFilter] = useState<FilterValue>("All");
+  const [showNewTask, setShowNewTask] = useState(false);
   const { tasks, toggleTask, sendDraft, skipDraft } = useAppTasks();
   const { data: meetings = [] } = useMeetings();
 
@@ -120,6 +217,16 @@ export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
       }}
     >
       {frameMode && <StatusBar />}
+
+      {/* Assistant tab — full screen */}
+      {activeNav === "Assistant" && (
+        <div className="flex-1 min-h-0 flex flex-col" style={{ paddingTop: frameMode ? 0 : "env(safe-area-inset-top)" }}>
+          <AssistantSheet />
+        </div>
+      )}
+
+      {/* Stream tab */}
+      {activeNav !== "Assistant" && <>
 
       {/* App header */}
       <div
@@ -182,6 +289,7 @@ export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
       {/* FAB */}
       <div className="absolute" style={{ bottom: 100, right: 20 }}>
         <button
+          onClick={() => setShowNewTask(true)}
           className="w-14 h-14 rounded-full flex items-center justify-center text-[#1a1108]"
           style={{ background: `linear-gradient(135deg, ${tokens.bronze}, #8a5a1e)`, boxShadow: "0 6px 20px rgba(200,137,63,0.35), inset 0 1px 0 rgba(255,255,255,0.2)" }}
         >
@@ -189,7 +297,11 @@ export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
         </button>
       </div>
 
-      <BottomNav />
+      </> /* end Stream tab */}
+
+      <BottomNav active={activeNav} onNav={setActiveNav} />
+
+      {showNewTask && <NewTaskModal onClose={() => setShowNewTask(false)} />}
     </div>
   );
 }
