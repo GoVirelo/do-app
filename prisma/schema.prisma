@@ -15,6 +15,7 @@ model User {
   passwordHash  String?
   totpSecret    String?
   totpEnabled   Boolean   @default(false)
+  shortcutToken String?   @unique
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
