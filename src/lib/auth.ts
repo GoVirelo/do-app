@@ -39,7 +39,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       authorization: {
         params: {
           scope: "openid profile email",
-          user_scope: "im:history",
+          user_scope: "im:history chat:write",
         },
       },
     }),
