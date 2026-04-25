@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession, signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { TopBar } from "@/components/ui/TopBar";
@@ -109,6 +109,62 @@ export function SettingsView({ onViewChange }: Props) {
   const [pwError, setPwError] = useState("");
   const [pwSuccess, setPwSuccess] = useState(false);
 
+  // 2FA state
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false);
+  const [setting2FA, setSetting2FA] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState("");
+  const [totpSecret, setTotpSecret] = useState("");
+  const [totpCode, setTotpCode] = useState("");
+  const [totpError, setTotpError] = useState("");
+  const [totpSuccess, setTotpSuccess] = useState(false);
+  const [totpLoading, setTotpLoading] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/auth/2fa/status")
+      .then(r => r.json())
+      .then(d => { if (d.enabled) setTwoFactorEnabled(true); })
+      .catch(() => {});
+  }, []);
+
+  async function handleSetup2FA() {
+    setSetting2FA(true);
+    setTotpError("");
+    setTotpSuccess(false);
+    setTotpCode("");
+    const res = await fetch("/api/auth/2fa/setup");
+    const d = await res.json();
+    setQrDataUrl(d.qrDataUrl);
+    setTotpSecret(d.secret);
+  }
+
+  async function handleVerify2FA() {
+    setTotpLoading(true);
+    setTotpError("");
+    const res = await fetch("/api/auth/2fa/verify", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: totpCode }),
+    });
+    setTotpLoading(false);
+    if (res.ok) {
+      setTwoFactorEnabled(true);
+      setSetting2FA(false);
+      setTotpSuccess(true);
+      setQrDataUrl("");
+      setTotpSecret("");
+      setTotpCode("");
+    } else {
+      const d = await res.json();
+      setTotpError(d.error ?? "Invalid code. Try again.");
+    }
+  }
+
+  async function handleDisable2FA() {
+    await fetch("/api/auth/2fa/verify", { method: "DELETE" });
+    setTwoFactorEnabled(false);
+    setTotpSuccess(false);
+  }
+
   async function handlePasswordChange(e: React.FormEvent) {
     e.preventDefault();
     setPwError("");
@@ -181,12 +237,77 @@ export function SettingsView({ onViewChange }: Props) {
                 </button>
               </form>
             )}
-            <LastRow
-              label="Two-factor authentication"
-              hint="Add an extra layer of security"
-              action={() => router.push("/settings/2fa")}
-              actionLabel="Set up"
-            />
+            <div style={{ borderBottom: "none" }}>
+              <div className="flex items-center justify-between px-4 py-3.5">
+                <div>
+                  <div className="text-[13px]" style={{ color: tokens.fg1 }}>Two-factor authentication</div>
+                  <div className="text-[11px] mt-0.5" style={{ color: tokens.fg3 }}>
+                    {twoFactorEnabled ? "Enabled — your account is protected" : "Add an extra layer of security"}
+                  </div>
+                </div>
+                {twoFactorEnabled ? (
+                  <button
+                    onClick={handleDisable2FA}
+                    className="text-[12px] font-medium px-3 h-7 rounded-r2 transition-colors hover:opacity-80"
+                    style={{ color: tokens.oxblood, border: `1px solid ${tokens.oxblood}22`, background: `${tokens.oxblood}11` }}
+                  >
+                    Disable
+                  </button>
+                ) : (
+                  <button
+                    onClick={setting2FA ? () => setSetting2FA(false) : handleSetup2FA}
+                    className="text-[12px] font-medium px-3 h-7 rounded-r2 transition-colors hover:opacity-80"
+                    style={{ color: tokens.bronze, border: `1px solid ${tokens.bronze}22`, background: `${tokens.bronze}11` }}
+                  >
+                    {setting2FA ? "Cancel" : "Set up"}
+                  </button>
+                )}
+              </div>
+
+              {totpSuccess && !setting2FA && (
+                <p className="px-4 pb-3 text-[12px]" style={{ color: tokens.forest }}>Two-factor authentication enabled.</p>
+              )}
+
+              {setting2FA && (
+                <div className="px-4 pb-5 flex flex-col gap-4">
+                  <p className="text-[12px]" style={{ color: tokens.fg2 }}>
+                    Scan this QR code with Microsoft Authenticator, Google Authenticator, or any TOTP app, then enter the 6-digit code to confirm.
+                  </p>
+                  {qrDataUrl && (
+                    <div className="flex flex-col items-start gap-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={qrDataUrl} alt="TOTP QR code" width={160} height={160} className="rounded-r2" style={{ imageRendering: "pixelated" }} />
+                      <div className="font-mono text-[11px] px-2 py-1.5 rounded-r2 select-all" style={{ background: tokens.bg3, color: tokens.fg2, letterSpacing: "0.1em" }}>
+                        {totpSecret}
+                      </div>
+                      <p className="text-[11px]" style={{ color: tokens.fg3 }}>Can't scan? Enter the key above manually in your app.</p>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      placeholder="000000"
+                      value={totpCode}
+                      onChange={e => setTotpCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onKeyDown={e => e.key === "Enter" && totpCode.length === 6 && handleVerify2FA()}
+                      className="w-32 h-9 px-3 rounded-r2 text-[14px] font-mono outline-none text-center tracking-widest"
+                      style={{ background: tokens.bg3, border: `1px solid ${tokens.line2}`, color: tokens.fg0 }}
+                    />
+                    <button
+                      onClick={handleVerify2FA}
+                      disabled={totpCode.length !== 6 || totpLoading}
+                      className="h-9 px-4 rounded-r2 text-[13px] font-semibold disabled:opacity-40"
+                      style={{ background: "linear-gradient(180deg, #d4964a, #b87a30)", color: "#1a1108" }}
+                    >
+                      {totpLoading ? "Verifying…" : "Verify & enable"}
+                    </button>
+                  </div>
+                  {totpError && <p className="text-[12px]" style={{ color: tokens.oxblood }}>{totpError}</p>}
+                </div>
+              )}
+            </div>
           </Section>
 
           {/* Integrations */}
