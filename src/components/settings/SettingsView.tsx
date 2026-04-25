@@ -112,7 +112,7 @@ export function SettingsView({ onViewChange }: Props) {
   // Shortcuts token state
   const [shortcutToken, setShortcutToken] = useState<string | null>(null);
   const [shortcutTokenLoaded, setShortcutTokenLoaded] = useState(false);
-  const [shortcutCopied, setShortcutCopied] = useState(false);
+  const [copiedKind, setCopiedKind] = useState<"work" | "personal" | null>(null);
 
   useEffect(() => {
     fetch("/api/shortcuts/token")
@@ -125,14 +125,15 @@ export function SettingsView({ onViewChange }: Props) {
     const res = await fetch("/api/shortcuts/token", { method: "POST" });
     const d = await res.json();
     setShortcutToken(d.token);
-    setShortcutCopied(false);
+    setCopiedKind(null);
   }
 
-  function copyShortcutUrl() {
-    const url = `${window.location.origin}/api/shortcuts/task?token=${shortcutToken}`;
+  function copyShortcutUrl(kind: "work" | "personal") {
+    const source = kind === "personal" ? "&source=personal" : "";
+    const url = `${window.location.origin}/api/shortcuts/task?token=${shortcutToken}${source}`;
     navigator.clipboard.writeText(url);
-    setShortcutCopied(true);
-    setTimeout(() => setShortcutCopied(false), 2000);
+    setCopiedKind(kind);
+    setTimeout(() => setCopiedKind(null), 2000);
   }
 
   // 2FA state
@@ -360,59 +361,67 @@ export function SettingsView({ onViewChange }: Props) {
 
           {/* iOS Shortcuts */}
           <Section title="iOS Shortcuts">
-            <div className="px-4 py-3.5" style={{ borderBottom: `1px solid ${tokens.line}` }}>
-              <div className="text-[13px] mb-0.5" style={{ color: tokens.fg1 }}>Add task via Shortcut</div>
-              <div className="text-[11px] mb-3" style={{ color: tokens.fg3 }}>
-                Generate a personal URL — paste it into an iOS Shortcut to add tasks hands-free.
+            {!shortcutTokenLoaded ? null : !shortcutToken ? (
+              <div className="px-4 py-3.5">
+                <div className="text-[13px] mb-1" style={{ color: tokens.fg1 }}>Add tasks via Siri or Shortcuts</div>
+                <div className="text-[11px] mb-3" style={{ color: tokens.fg3 }}>Generate a token to create two shortcuts — one for work tasks, one for personal.</div>
+                <button
+                  onClick={generateShortcutToken}
+                  className="text-[12px] font-medium px-3 h-7 rounded-r2 transition-colors hover:opacity-80"
+                  style={{ color: tokens.bronze, border: `1px solid ${tokens.bronze}22`, background: `${tokens.bronze}11` }}
+                >
+                  Generate token
+                </button>
               </div>
-              {shortcutTokenLoaded && (
-                shortcutToken ? (
-                  <div className="flex flex-col gap-2">
-                    <div
-                      className="flex items-center gap-2 px-2.5 py-2 rounded-r2 font-mono text-[10.5px] break-all select-all"
-                      style={{ background: tokens.bg3, border: `1px solid ${tokens.line2}`, color: tokens.fg2 }}
-                    >
-                      {window.location.origin}/api/shortcuts/task?token={shortcutToken.slice(0, 8)}…
-                    </div>
-                    <div className="flex gap-2">
+            ) : (
+              <>
+                {[
+                  { kind: "work" as const,     label: "Work task",     siri: "Hey Siri, Add work task to Do",     color: tokens.steel },
+                  { kind: "personal" as const, label: "Personal task", siri: "Hey Siri, Add personal task to Do", color: tokens.plum },
+                ].map(({ kind, label, siri, color }) => (
+                  <div key={kind} className="px-4 py-3.5" style={{ borderBottom: `1px solid ${tokens.line}` }}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div>
+                        <span className="text-[13px]" style={{ color: tokens.fg1 }}>{label}</span>
+                        <div className="font-mono-do text-[10px] mt-0.5" style={{ color: tokens.fg3 }}>"{siri}"</div>
+                      </div>
                       <button
-                        onClick={copyShortcutUrl}
-                        className="text-[12px] font-medium px-3 h-7 rounded-r2 transition-colors hover:opacity-80"
-                        style={{ color: shortcutCopied ? tokens.forest : tokens.bronze, border: `1px solid ${(shortcutCopied ? tokens.forest : tokens.bronze)}22`, background: `${shortcutCopied ? tokens.forest : tokens.bronze}11` }}
+                        onClick={() => copyShortcutUrl(kind)}
+                        className="text-[12px] font-medium px-3 h-7 rounded-r2 transition-colors hover:opacity-80 flex-shrink-0"
+                        style={{
+                          color: copiedKind === kind ? tokens.forest : color,
+                          border: `1px solid ${(copiedKind === kind ? tokens.forest : color)}33`,
+                          background: `${copiedKind === kind ? tokens.forest : color}11`,
+                        }}
                       >
-                        {shortcutCopied ? "Copied!" : "Copy URL"}
-                      </button>
-                      <button
-                        onClick={generateShortcutToken}
-                        className="text-[12px] font-medium px-3 h-7 rounded-r2 transition-colors hover:opacity-80"
-                        style={{ color: tokens.fg2, border: `1px solid ${tokens.line2}`, background: "transparent" }}
-                      >
-                        Regenerate
+                        {copiedKind === kind ? "Copied!" : "Copy URL"}
                       </button>
                     </div>
                   </div>
-                ) : (
+                ))}
+                <div className="px-4 py-3.5" style={{ borderBottom: `1px solid ${tokens.line}` }}>
+                  <div className="text-[11.5px] font-medium mb-2" style={{ color: tokens.fg2 }}>Set up each shortcut</div>
+                  <ol className="text-[11.5px] leading-loose list-decimal list-inside" style={{ color: tokens.fg3 }}>
+                    <li>Copy a URL above</li>
+                    <li>Shortcuts app → <strong style={{ color: tokens.fg2 }}>New Shortcut</strong></li>
+                    <li>Add <strong style={{ color: tokens.fg2 }}>Ask for Input</strong> — prompt "Task name"</li>
+                    <li>Add <strong style={{ color: tokens.fg2 }}>Get Contents of URL</strong> — paste URL, Method: POST</li>
+                    <li>Request body JSON: <span className="font-mono" style={{ color: tokens.fg2 }}>{`{"title": [Provided Input]}`}</span></li>
+                    <li>Name it e.g. <em>"Add work task to Do"</em> — Siri picks it up automatically</li>
+                  </ol>
+                </div>
+                <div className="px-4 py-3 flex justify-end">
                   <button
                     onClick={generateShortcutToken}
-                    className="text-[12px] font-medium px-3 h-7 rounded-r2 transition-colors hover:opacity-80"
-                    style={{ color: tokens.bronze, border: `1px solid ${tokens.bronze}22`, background: `${tokens.bronze}11` }}
+                    className="text-[11.5px] transition-colors hover:opacity-80"
+                    style={{ color: tokens.fg3 }}
                   >
-                    Generate token
+                    Regenerate token (invalidates existing shortcuts)
                   </button>
-                )
-              )}
-            </div>
-            <div className="px-4 py-3.5">
-              <div className="text-[13px] mb-0.5" style={{ color: tokens.fg1 }}>How to set up</div>
-              <ol className="text-[11.5px] leading-relaxed list-decimal list-inside" style={{ color: tokens.fg3 }}>
-                <li>Copy the URL above</li>
-                <li>Open the Shortcuts app → New Shortcut</li>
-                <li>Add <strong style={{ color: tokens.fg2 }}>Ask for Input</strong> → prompt "Task name"</li>
-                <li>Add <strong style={{ color: tokens.fg2 }}>Get Contents of URL</strong> → paste the URL</li>
-                <li>Set Method to <strong style={{ color: tokens.fg2 }}>POST</strong>, add JSON body: <span className="font-mono" style={{ color: tokens.fg2 }}>{`{"title": [Provided Input]}`}</span></li>
-                <li>Add to Home Screen or run with Siri</li>
-              </ol>
-            </div>
+                </div>
+              </>
+            )}
+          </Section>
           </Section>
 
           {/* Danger zone */}

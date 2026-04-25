@@ -7,29 +7,27 @@ const Schema = z.object({
   notes: z.string().optional(),
   priority: z.enum(["hot", "high", "medium", "low"]).optional().default("medium"),
   bucket: z.enum(["inbox", "today", "upcoming"]).optional().default("inbox"),
+  source: z.enum(["manual", "personal"]).optional(),
 });
 
 export async function POST(req: Request) {
-  // Accept token via Authorization header or ?token= query param
   const url = new URL(req.url);
   const tokenParam = url.searchParams.get("token");
   const authHeader = req.headers.get("authorization");
   const token = tokenParam ?? authHeader?.replace(/^Bearer\s+/i, "");
 
-  if (!token) {
-    return NextResponse.json({ error: "Missing token" }, { status: 401 });
-  }
+  if (!token) return NextResponse.json({ error: "Missing token" }, { status: 401 });
 
   const user = await prisma.user.findUnique({ where: { shortcutToken: token } });
-  if (!user) {
-    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
-  }
+  if (!user) return NextResponse.json({ error: "Invalid token" }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const parsed = Schema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 });
-  }
+  if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 422 });
+
+  // source: body takes precedence, then ?source= query param, then default "manual"
+  const sourceParam = url.searchParams.get("source");
+  const source = parsed.data.source ?? (sourceParam === "personal" ? "personal" : "manual");
 
   const task = await prisma.task.create({
     data: {
@@ -38,7 +36,7 @@ export async function POST(req: Request) {
       notes: parsed.data.notes,
       priority: parsed.data.priority,
       bucket: parsed.data.bucket,
-      source: "manual",
+      source,
     },
   });
 
