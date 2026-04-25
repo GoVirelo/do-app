@@ -11,6 +11,11 @@ import { cn } from "@/lib/utils";
 import { tokens } from "@/lib/tokens";
 import type { Task } from "@/types";
 
+// Module-level ref avoids dataTransfer key compatibility issues across browsers
+let _draggingTaskId = "";
+export function setDraggingTaskId(id: string) { _draggingTaskId = id; }
+export function getDraggingTaskId() { return _draggingTaskId; }
+
 const SCHEDULE_OPTIONS = [
   { label: "No date",   bucket: "inbox",    dueAt: null,        color: tokens.fg2 },
   { label: "Today",     bucket: "today",    dueAt: "today",     color: tokens.bronze },
@@ -123,8 +128,9 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
   }
 
   function handleDragStart(e: React.DragEvent) {
-    e.dataTransfer.setData("taskId", task.id);
+    e.dataTransfer.setData("text/plain", task.id);
     e.dataTransfer.effectAllowed = "move";
+    setDraggingTaskId(task.id);
   }
 
   return (

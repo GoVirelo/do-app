@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Icons } from "@/components/ui/Icons";
 import { Button } from "@/components/ui/Button";
+import { getDraggingTaskId } from "./TaskRow";
 
 type Props = {
   label: string;
@@ -19,19 +20,22 @@ export function SectionHeader({ label, color, count, onAdd, onDropTask }: Props)
     setOver(true);
   }
 
-  function handleDragLeave() {
+  function handleDragLeave(e: React.DragEvent) {
+    // Only clear when cursor truly leaves this element (not just a child)
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
     setOver(false);
   }
 
   function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
     setOver(false);
-    const taskId = e.dataTransfer.getData("taskId");
+    const taskId = getDraggingTaskId() || e.dataTransfer.getData("text/plain");
     if (taskId && onDropTask) onDropTask(taskId);
   }
 
   return (
     <div
-      className="flex items-center gap-2.5 px-6 pt-[18px] pb-1.5 border-b border-line transition-colors"
+      className="flex items-center gap-2.5 px-6 pt-[18px] pb-3 border-b border-line transition-colors"
       style={{ background: over ? `${color}14` : "transparent" }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
