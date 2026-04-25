@@ -43,7 +43,8 @@
       "Bash(node node_modules/next/dist/bin/next build)",
       "Bash(npx prisma *)",
       "Bash(npx vercel *)",
-      "Bash(npm list *)"
+      "Bash(npm list *)",
+      "Bash(grep -v \"^[^:]*:0$\")"
     ]
   }
 }

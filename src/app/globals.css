@@ -48,11 +48,34 @@
     font-family: inherit;
   }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: #373d45; border-radius: 4px; }
-  ::-webkit-scrollbar-thumb:hover { background: #5a5f67; }
+  /* Scrollbar — hidden on touch devices, styled on desktop */
+  @media (pointer: fine) {
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #373d45; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #5a5f67; }
+  }
+  @media (pointer: coarse) {
+    ::-webkit-scrollbar { display: none; }
+    * { scrollbar-width: none; }
+  }
+
+  /* Prevent iOS auto-zoom on input focus (requires font-size >= 16px) */
+  @media (max-width: 768px) {
+    input, textarea, select {
+      font-size: 16px !important;
+    }
+  }
+
+  /* Smooth momentum scrolling on iOS */
+  .overflow-auto, .overflow-y-auto, .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent overscroll bounce on the root */
+  html {
+    overscroll-behavior: none;
+  }
 }
 
 @layer utilities {

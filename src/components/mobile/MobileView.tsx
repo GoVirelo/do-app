@@ -35,41 +35,56 @@ function BottomNav() {
   ];
   return (
     <div
-      className="absolute bottom-0 left-0 right-0 h-[84px] flex items-start justify-around pt-2.5 flex-shrink-0"
-      style={{ background: tokens.bg1, borderTop: `1px solid ${tokens.line}` }}
+      className="absolute bottom-0 left-0 right-0 flex-shrink-0"
+      style={{
+        background: tokens.bg1,
+        borderTop: `1px solid ${tokens.line}`,
+        paddingBottom: "env(safe-area-inset-bottom)",
+      }}
     >
-      {items.map(({ label, icon }) => (
-        <button
-          key={label}
-          onClick={() => setActive(label)}
-          className="flex flex-col items-center gap-1 transition-colors"
-          style={{ color: active === label ? tokens.bronze : tokens.fg3 }}
-        >
-          {icon}
-          <span className="text-[10px] font-medium tracking-[0.02em]">{label}</span>
-        </button>
-      ))}
+      <div className="flex items-center justify-around pt-2.5 pb-2">
+        {items.map(({ label, icon }) => (
+          <button
+            key={label}
+            onClick={() => setActive(label)}
+            className="flex flex-col items-center gap-1 transition-colors min-w-[44px] min-h-[44px] justify-center"
+            style={{ color: active === label ? tokens.bronze : tokens.fg3 }}
+          >
+            {icon}
+            <span className="text-[10px] font-medium tracking-[0.02em]">{label}</span>
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
 
-export function MobileView() {
+export function MobileView({ frameMode = false }: { frameMode?: boolean }) {
   return (
     <div
       className="flex flex-col overflow-hidden relative"
-      style={{
+      style={frameMode ? {
         width: 390,
         height: 844,
         background: tokens.bg0,
         color: tokens.fg0,
         borderRadius: 36,
         border: `1px solid ${tokens.line2}`,
+      } : {
+        width: "100%",
+        height: "100%",
+        background: tokens.bg0,
+        color: tokens.fg0,
       }}
     >
-      <StatusBar />
+      {/* Show fake status bar only in frame/desktop preview mode */}
+      {frameMode && <StatusBar />}
 
-      {/* App header */}
-      <div className="px-5 pt-2 pb-3.5 flex-shrink-0">
+      {/* App header — add safe-area top padding on real device */}
+      <div
+        className="px-5 pb-3.5 flex-shrink-0"
+        style={{ paddingTop: frameMode ? 8 : "max(env(safe-area-inset-top), 16px)" }}
+      >
         <div className="flex items-center justify-between mb-2.5">
           <span
             className="font-display text-[22px] font-semibold tracking-[-0.02em]"
