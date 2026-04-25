@@ -100,7 +100,7 @@ function AssistantSheet() {
         <Sparkle size={14} />
         <span className="font-semibold text-[15px]">Assistant</span>
       </div>
-      <div className="flex-1 overflow-auto px-4 py-3 pb-[100px] flex flex-col gap-3">
+      <div className="flex-1 overflow-auto px-4 py-3 flex flex-col gap-3">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-2 opacity-40">
             <Sparkle size={24} />
@@ -129,7 +129,7 @@ function AssistantSheet() {
         )}
         <div ref={bottomRef} />
       </div>
-      <div className="px-4 py-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.line}`, paddingBottom: "max(env(safe-area-inset-bottom), 12px)" }}>
+      <div className="px-4 pt-3 flex-shrink-0" style={{ borderTop: `1px solid ${tokens.line}`, paddingBottom: "calc(env(safe-area-inset-bottom) + 72px)" }}>
         <div className="flex gap-2 items-end">
           <textarea
             value={input}
