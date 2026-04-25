@@ -5,7 +5,7 @@ export type Task = {
   title: string;
   status: "open" | "done" | "snoozed";
   priority: "normal" | "hot";
-  bucket: "now" | "today" | "this_week" | "scheduled";
+  bucket: "inbox" | "now" | "today" | "this_week" | "scheduled";
   source: Source;
   sourceRef: {
     granola?: { meetingId: string; utteranceId?: string; quote?: string };

@@ -20,7 +20,7 @@ export function BoardView({ onViewChange }: Props) {
   const byBucket = (bucket: Task["bucket"]) => tasks.filter((t) => t.bucket === bucket);
   const done = tasks.filter((t) => t.status === "done");
 
-  const nowTasks = byBucket("now");
+  const backlogTasks = byBucket("inbox");
   const todayTasks = byBucket("today");
   const weekTasks = byBucket("this_week");
 
@@ -51,8 +51,8 @@ export function BoardView({ onViewChange }: Props) {
           </div>
 
           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(4, 1fr)", minHeight: 500 }}>
-            <BoardColumn title="Now" color={tokens.oxblood} count={nowTasks.filter(t => t.status === "open").length}>
-              {nowTasks.map((t) => (
+            <BoardColumn title="Backlog" color={tokens.fg2} count={backlogTasks.filter(t => t.status === "open").length}>
+              {backlogTasks.map((t) => (
                 <TaskCard key={t.id} task={t} onToggle={() => toggleTask(t.id)} />
               ))}
             </BoardColumn>

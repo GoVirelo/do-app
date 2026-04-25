@@ -123,7 +123,7 @@ export function Sidebar({ activeItem = "Stream", filter, onFilter }: Props) {
     return (
       <div
         className="flex flex-col items-center py-3.5 gap-4 flex-shrink-0 border-r border-line"
-        style={{ width: 44, background: "var(--bg-1)" }}
+        style={{ width: 44, background: "#111316" }}
       >
         <button
           onClick={() => setCollapsed(false)}

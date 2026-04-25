@@ -11,7 +11,7 @@ function apiToTask(t: ApiTask): Task {
     title: t.title,
     status: t.status as Task["status"],
     priority: (t.priority === "hot" ? "hot" : t.priority === "high" ? "high" : t.priority === "low" ? "low" : "normal") as Task["priority"],
-    bucket: (t.bucket === "inbox" ? "today" : t.bucket === "today" ? "today" : t.bucket === "upcoming" ? "this_week" : t.bucket === "waiting" ? "this_week" : "today") as Task["bucket"],
+    bucket: (t.bucket === "inbox" ? "inbox" : t.bucket === "today" ? "today" : t.bucket === "upcoming" ? "this_week" : t.bucket === "waiting" ? "this_week" : "inbox") as Task["bucket"],
     source: t.source as Task["source"],
     sourceRef: t.sourceRef ? { slack: { channel: "", ts: "" } } : undefined,
     createdAt: new Date(t.createdAt),

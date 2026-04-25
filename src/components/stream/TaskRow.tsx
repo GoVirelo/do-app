@@ -12,7 +12,7 @@ import { tokens } from "@/lib/tokens";
 import type { Task } from "@/types";
 
 const SCHEDULE_OPTIONS = [
-  { label: "No date",   bucket: "inbox",    dueAt: null,        color: tokens.fg3 },
+  { label: "No date",   bucket: "inbox",    dueAt: null,        color: tokens.fg2 },
   { label: "Today",     bucket: "today",    dueAt: "today",     color: tokens.bronze },
   { label: "Tomorrow",  bucket: "upcoming", dueAt: "tomorrow",  color: "#8a9ab5" },
   { label: "This week", bucket: "upcoming", dueAt: null,        color: tokens.steel },
@@ -28,7 +28,7 @@ function bucketLabel(bucket: string, dueAt?: Date | null): { label: string; colo
     }
     return { label: "This week", color: tokens.steel, active: true };
   }
-  return { label: "No date", color: tokens.fg3, active: false };
+  return { label: "No date", color: tokens.fg2, active: false };
 }
 
 export function SchedulePill({ task }: { task: Task }) {

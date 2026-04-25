@@ -76,9 +76,13 @@ export function StreamView({ onViewChange }: Props) {
 
   // Granola task IDs that belong to a meeting (we show those in meeting cards)
   const meetingTaskIds = new Set(meetings.flatMap((m) => m.tasks.map((t) => t.id)));
-  const orphanGranolaTasks = tasks.filter((t) => t.source === "granola" && !meetingTaskIds.has(t.id));
+  const orphanGranolaTasks = filteredTasks.filter((t) => t.source === "granola" && !meetingTaskIds.has(t.id));
+
+  // Show meeting cards unless a non-granola source filter is active
+  const showMeetingCards = !filter || filter.type !== "source" || filter.value === "granola";
 
   const flatTasks = [...otherTasks, ...orphanGranolaTasks];
+  const inboxTasks = flatTasks.filter((t) => t.bucket === "inbox");
   const todayTasks = flatTasks.filter((t) => t.bucket === "today");
   const weekTasks = flatTasks.filter((t) => t.bucket === "this_week");
 
@@ -116,8 +120,8 @@ export function StreamView({ onViewChange }: Props) {
             </div>
           </div>
 
-          {/* Meeting cards — hide when all tasks done */}
-          {meetings.filter((m) => {
+          {/* Meeting cards — hide when all tasks done or source filter excludes granola */}
+          {showMeetingCards && meetings.filter((m) => {
             if (m.tasks.length === 0) return false;
             // Check current status from live tasks state; fall back to DB state
             return m.tasks.some((t) => {
@@ -257,6 +261,21 @@ export function StreamView({ onViewChange }: Props) {
           })}
 
           {/* Flat tasks from other sources */}
+          {inboxTasks.length > 0 && (
+            <>
+              <SectionHeader label="Backlog" color={tokens.fg2} count={inboxTasks.filter(t => t.status === "open").length} />
+              {inboxTasks.map((t) => (
+                <TaskRow
+                  key={t.id}
+                  task={t}
+                  onToggle={() => toggleTask(t.id)}
+                  onSkipDraft={() => skipDraft(t.id)}
+                  onSendDraft={() => sendDraft(t.id)}
+                />
+              ))}
+            </>
+          )}
+
           {todayTasks.length > 0 && (
             <>
               <SectionHeader label="Today" color={tokens.bronze} count={todayTasks.filter(t => t.status === "open").length} />

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { sourceTokens } from "@/lib/tokens";
+import { sourceTokens, tokens } from "@/lib/tokens";
 import type { Source } from "@/types";
 
 const ALL_SOURCES: Source[] = ["granola", "outlook", "slack", "personal"];
@@ -44,7 +44,7 @@ export function SourceBadge({ kind, className, onChange }: Props) {
       {open && (
         <div
           className="absolute left-0 top-full mt-1 z-50 rounded-[4px] overflow-hidden py-0.5"
-          style={{ background: "var(--bg-3)", border: "1px solid var(--line-2)", minWidth: 100, boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}
+          style={{ background: tokens.bg3, border: `1px solid ${tokens.line2}`, minWidth: 100, boxShadow: "0 4px 16px rgba(0,0,0,0.4)" }}
         >
           {ALL_SOURCES.map(s => {
             const st = sourceTokens[s];
@@ -53,7 +53,7 @@ export function SourceBadge({ kind, className, onChange }: Props) {
                 key={s}
                 onClick={() => { onChange(s); setOpen(false); }}
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-[11.5px] hover:bg-bg-4 transition-colors"
-                style={{ color: s === kind ? st.fg : "var(--fg-1)" }}
+                style={{ color: s === kind ? st.fg : tokens.fg1 }}
               >
                 <span className="w-[5px] h-[5px] rounded-full flex-shrink-0" style={{ background: st.fg }} />
                 {st.label}
