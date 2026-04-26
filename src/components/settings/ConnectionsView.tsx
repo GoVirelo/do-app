@@ -43,11 +43,28 @@ function SlackDebugModal({ onClose }: { onClose: () => void }) {
           {data && !loading && (
             <>
               <Row label="Workspace" value={data.workspace ?? "—"} />
-              <Row label="Slack user" value={data.slackUser ?? "—"} />
+              <Row label="Slack user" value={`${data.slackUser ?? "—"} (${data.mySlackId ?? "?"})`} />
               <Row label="DM channels" value={data.dmChannels ?? 0} />
-              <Row label="DMs (last 3 days)" value={data.dmMessagesLast3Days ?? 0} />
-              <Row label="@Mentions (last 3 days)" value={data.mentionsLast3Days ?? 0} />
+              <Row label="DMs from others (7 days)" value={data.dmMessagesLast7Days ?? data.dmMessagesLast3Days ?? 0} />
+              <Row label="@Mentions (7 days)" value={data.mentionsLast7Days ?? data.mentionsLast3Days ?? 0} />
               <Row label="Slack tasks in DB" value={data.slackTasksInDB ?? 0} />
+              {data.dmError && <div className="text-[11.5px] px-1" style={{ color: tokens.oxblood }}>DM error: {data.dmError}</div>}
+              {data.sampleDMs?.length > 0 && (
+                <div>
+                  <div className="font-mono-do text-[10px] uppercase tracking-widest mb-1" style={{ color: tokens.fg3 }}>Sample DMs found</div>
+                  {data.sampleDMs.map((d: any, i: number) => (
+                    <div key={i} className="text-[11px] py-0.5" style={{ color: tokens.fg2 }}>· {d.preview ?? d.error}</div>
+                  ))}
+                </div>
+              )}
+              {data.mentionSamples?.length > 0 && (
+                <div>
+                  <div className="font-mono-do text-[10px] uppercase tracking-widest mb-1" style={{ color: tokens.fg3 }}>Sample mentions</div>
+                  {data.mentionSamples.map((m: any, i: number) => (
+                    <div key={i} className="text-[11px] py-0.5" style={{ color: tokens.fg2 }}>· #{m.channel} from {m.from}: {m.preview}</div>
+                  ))}
+                </div>
+              )}
 
               {data.needsReconnect && (
                 <div className="rounded-r2 px-3 py-2.5 text-[12px]" style={{ background: tokens.oxbloodSoft, border: `1px solid ${tokens.oxblood}55`, color: tokens.fg1 }}>

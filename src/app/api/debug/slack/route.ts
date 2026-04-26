@@ -11,11 +11,10 @@ export async function GET() {
     where: { userId_provider: { userId: session.user.id, provider: "slack" } },
   });
 
-  if (!integration) return NextResponse.json({ connected: false, error: "No Slack integration found — go to /connections to connect" });
+  if (!integration) return NextResponse.json({ connected: false, error: "No Slack integration found" });
 
   const tokenPrefix = integration.accessToken?.slice(0, 15) ?? "empty";
   const grantedScopes = (integration.scope ?? "").split(",").map(s => s.trim()).filter(Boolean);
-
   const neededScopes = ["im:read", "im:history", "channels:history", "search:read", "chat:write"];
   const missingScopes = neededScopes.filter(s => !grantedScopes.includes(s));
 
@@ -37,35 +36,52 @@ export async function GET() {
     result.mySlackId = authInfo.user_id;
   } catch (e: any) {
     result.authTestError = e.message;
-    // Can't do much else without knowing the user ID
     return NextResponse.json(result);
   }
 
   const mySlackId = result.mySlackId ?? "";
   const sevenDaysAgo = (Date.now() / 1000 - 7 * 24 * 60 * 60).toString();
 
-  // Step 2: list DM channels (needs im:read)
+  // Step 2: DMs — check ALL channels (not just 10)
+  const sampleDMs: any[] = [];
   try {
-    const dms = await slack.conversations.list({ types: "im,mpim", limit: 50 });
-    result.dmChannels = dms.channels?.length ?? 0;
+    const dms = await slack.conversations.list({ types: "im,mpim", limit: 200, exclude_archived: true });
+    const channels = dms.channels ?? [];
+    result.dmChannels = channels.length;
 
     let dmMessages = 0;
-    for (const ch of (dms.channels ?? []).slice(0, 10)) {
+    for (const ch of channels) {
       if (!ch.id) continue;
       try {
-        const history = await slack.conversations.history({ channel: ch.id, oldest: sevenDaysAgo, limit: 30 });
-        const fromOthers = (history.messages ?? []).filter(m => m.user !== mySlackId && m.subtype !== "bot_message");
-        dmMessages += fromOthers.length;
-      } catch { /* skip */ }
+        const history = await slack.conversations.history({ channel: ch.id, oldest: sevenDaysAgo, limit: 20 });
+        const msgs = history.messages ?? [];
+        const fromOthers = msgs.filter(m => m.user !== mySlackId && m.subtype !== "bot_message" && m.text);
+
+        if (fromOthers.length > 0) {
+          dmMessages += fromOthers.length;
+          // Collect sample
+          if (sampleDMs.length < 5) {
+            sampleDMs.push({
+              channelId: ch.id,
+              otherUser: fromOthers[0].user,
+              preview: fromOthers[0].text?.slice(0, 60),
+              ts: fromOthers[0].ts,
+            });
+          }
+        }
+      } catch (e: any) {
+        if (sampleDMs.length < 2) sampleDMs.push({ channelId: ch.id, error: e.message });
+      }
     }
     result.dmMessagesLast7Days = dmMessages;
+    result.sampleDMs = sampleDMs;
   } catch (e: any) {
-    result.dmError = `conversations.list failed: ${e.message}`;
+    result.dmError = e.message;
     result.dmChannels = 0;
     result.dmMessagesLast7Days = 0;
   }
 
-  // Step 3: search for @mentions (needs search:read)
+  // Step 3: Search for @mentions
   try {
     const searchResult = await (slack as any).search.messages({
       query: `<@${mySlackId}>`,
@@ -73,29 +89,30 @@ export async function GET() {
       sort_dir: "desc",
       count: 20,
     });
-    result.mentionsLast7Days = searchResult?.messages?.total ?? 0;
+    const matches = searchResult?.messages?.matches ?? [];
+    // Filter to last 7 days
+    const recentMatches = matches.filter(
+      (m: any) => parseFloat(m.ts) * 1000 > Date.now() - 7 * 24 * 60 * 60 * 1000
+    );
+    result.mentionsLast7Days = recentMatches.length;
+    result.mentionSamples = recentMatches.slice(0, 3).map((m: any) => ({
+      channel: m.channel?.name,
+      from: m.username,
+      preview: m.text?.slice(0, 60),
+    }));
   } catch (e: any) {
-    result.searchError = `search failed: ${e.message}`;
+    result.searchError = e.message;
     result.mentionsLast7Days = 0;
   }
 
-  // Step 4: tasks in DB
-  result.slackTasksInDB = await prisma.task.count({
-    where: { userId: session.user.id, source: "slack" },
-  });
-
-  // Step 5: recent sync logs
+  // Step 4: DB count + sync logs
+  result.slackTasksInDB = await prisma.task.count({ where: { userId: session.user.id, source: "slack" } });
   const logs = await prisma.syncLog.findMany({
     where: { userId: session.user.id, provider: "slack" },
     orderBy: { createdAt: "desc" },
     take: 5,
   });
-  result.recentSyncLogs = logs.map(l => ({
-    status: l.status,
-    itemCount: l.itemCount,
-    error: l.error,
-    when: l.createdAt,
-  }));
+  result.recentSyncLogs = logs.map(l => ({ status: l.status, itemCount: l.itemCount, error: l.error, when: l.createdAt }));
 
   return NextResponse.json(result);
 }
