@@ -11,6 +11,8 @@ export type Task = {
   meta?: string;
   createdAt: Date;
   dueAt?: Date;
+  scheduledStart?: Date;
+  scheduledEnd?: Date;
   scheduledBlock?: { start: Date; end: Date };
   assignee: string;
   aiDraft?: AIDraft;

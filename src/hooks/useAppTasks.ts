@@ -16,6 +16,8 @@ function apiToTask(t: ApiTask): Task {
     sourceRef: t.sourceRef ?? undefined,
     createdAt: new Date(t.createdAt),
     dueAt: t.dueAt ? new Date(t.dueAt) : undefined,
+    scheduledStart: t.scheduledStart ? new Date(t.scheduledStart) : undefined,
+    scheduledEnd: t.scheduledEnd ? new Date(t.scheduledEnd) : undefined,
     aiDraft: t.aiDraft ? {
       body: t.aiDraft.body,
       channel: t.aiDraft.channel ?? "#general",
