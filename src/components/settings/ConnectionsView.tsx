@@ -7,6 +7,114 @@ import { TopBar } from "@/components/ui/TopBar";
 import { Sidebar } from "@/components/ui/Sidebar";
 import { tokens } from "@/lib/tokens";
 
+function SlackDebugModal({ onClose }: { onClose: () => void }) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/debug/slack")
+      .then(r => r.json())
+      .then(setData)
+      .finally(() => setLoading(false));
+  }, []);
+
+  async function runSync() {
+    setSyncing(true);
+    try {
+      const r = await fetch("/api/sync", { method: "POST" });
+      const result = await r.json();
+      setSyncResult(result?.results?.slack);
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.7)" }}>
+      <div className="rounded-r3 w-full max-w-lg max-h-[80vh] overflow-auto" style={{ background: tokens.bg1, border: `1px solid ${tokens.line2}` }}>
+        <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom: `1px solid ${tokens.line}` }}>
+          <span className="font-semibold text-[14px]">Slack Connection Diagnostics</span>
+          <button onClick={onClose} className="text-fg-3 hover:text-fg-1 text-[18px] leading-none">×</button>
+        </div>
+        <div className="p-5 text-[12.5px] space-y-3">
+          {loading && <div style={{ color: tokens.fg3 }}>Checking connection…</div>}
+          {data && !loading && (
+            <>
+              <Row label="Workspace" value={data.workspace ?? "—"} />
+              <Row label="Slack user" value={data.slackUser ?? "—"} />
+              <Row label="DM channels" value={data.dmChannels ?? 0} />
+              <Row label="DMs (last 3 days)" value={data.dmMessagesLast3Days ?? 0} />
+              <Row label="@Mentions (last 3 days)" value={data.mentionsLast3Days ?? 0} />
+              <Row label="Slack tasks in DB" value={data.slackTasksInDB ?? 0} />
+
+              {data.needsReconnect && (
+                <div className="rounded-r2 px-3 py-2.5 text-[12px]" style={{ background: tokens.oxbloodSoft, border: `1px solid ${tokens.oxblood}55`, color: tokens.fg1 }}>
+                  ⚠️ <strong>Reconnect required</strong> — missing scopes: <code>{data.missingScopes?.join(", ")}</code>
+                  <br /><span style={{ color: tokens.fg3 }}>Click Disconnect then Connect again to grant full access.</span>
+                </div>
+              )}
+              {data.searchError && (
+                <div className="rounded-r2 px-3 py-2 text-[12px]" style={{ background: tokens.bg3, color: tokens.fg3 }}>
+                  Search error: {data.searchError}
+                </div>
+              )}
+              {data.authError && (
+                <div className="rounded-r2 px-3 py-2 text-[12px]" style={{ background: tokens.oxbloodSoft, color: tokens.oxblood }}>
+                  Auth error: {data.authError}
+                </div>
+              )}
+              {data.recentSyncLogs?.length > 0 && (
+                <div>
+                  <div className="font-mono-do text-[10px] uppercase tracking-widest mb-1.5" style={{ color: tokens.fg3 }}>Recent sync logs</div>
+                  {data.recentSyncLogs.map((l: any, i: number) => (
+                    <div key={i} className="flex gap-2 text-[11.5px] py-0.5" style={{ color: l.status === "error" ? tokens.oxblood : tokens.fg2 }}>
+                      <span>{l.status}</span>
+                      <span style={{ color: tokens.fg3 }}>·</span>
+                      <span>{l.itemCount ?? 0} items</span>
+                      {l.error && <span style={{ color: tokens.oxblood }}>· {l.error}</span>}
+                      <span style={{ color: tokens.fg3 }}>· {new Date(l.when).toLocaleTimeString()}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {syncResult !== undefined && (
+                <div className="rounded-r2 px-3 py-2 text-[12px]" style={{ background: tokens.bg3, color: tokens.fg1 }}>
+                  Sync result: {syncResult?.count ?? 0} new task{syncResult?.count !== 1 ? "s" : ""} created
+                  {syncResult?.error && <span style={{ color: tokens.oxblood }}> · Error: {syncResult.error}</span>}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+        <div className="px-5 pb-4 flex gap-2">
+          <button
+            onClick={runSync}
+            disabled={syncing}
+            className="px-3.5 py-1.5 rounded-r2 text-[12px] font-medium disabled:opacity-50"
+            style={{ background: tokens.bronze, color: "#1a1108" }}
+          >
+            {syncing ? "Syncing…" : "Run sync now"}
+          </button>
+          <button onClick={onClose} className="px-3.5 py-1.5 rounded-r2 text-[12px]" style={{ color: tokens.fg3, border: `1px solid ${tokens.line}` }}>
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Row({ label, value }: { label: string; value: any }) {
+  return (
+    <div className="flex justify-between items-baseline gap-4">
+      <span style={{ color: tokens.fg3 }}>{label}</span>
+      <span className="font-mono-do text-[12px]" style={{ color: tokens.fg1 }}>{String(value)}</span>
+    </div>
+  );
+}
+
 type ConnectionStatus = "connected" | "disconnected" | "loading";
 
 interface Connection {
@@ -20,6 +128,7 @@ interface Connection {
   capabilities: string[];
   provider?: string;
   connectAction?: () => void;
+  onTest?: () => void;
   setupNote?: string;
 }
 
@@ -84,7 +193,7 @@ function StatusPill({ status }: { status: ConnectionStatus }) {
   );
 }
 
-function ConnectionCard({ conn, onDisconnect }: { conn: Connection; onDisconnect: (id: string) => void }) {
+function ConnectionCard({ conn, onDisconnect }: { conn: Connection; onDisconnect: (id: string) => void; }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -142,6 +251,15 @@ function ConnectionCard({ conn, onDisconnect }: { conn: Connection; onDisconnect
               >
                 Disconnect
               </button>
+              {conn.onTest && (
+                <button
+                  onClick={conn.onTest}
+                  className="text-[11px] font-medium px-3 h-7 rounded-r2 transition-colors"
+                  style={{ color: tokens.bronze, border: `1px solid ${tokens.bronzeLine}`, background: tokens.bronzeSoft }}
+                >
+                  Test connection
+                </button>
+              )}
               <button
                 onClick={() => setExpanded(!expanded)}
                 className="text-[11px] transition-colors"
@@ -197,6 +315,7 @@ function ConnectionCard({ conn, onDisconnect }: { conn: Connection; onDisconnect
 
 export function ConnectionsView() {
   const router = useRouter();
+  const [showSlackDebug, setShowSlackDebug] = useState(false);
   const [integrations, setIntegrations] = useState<Record<string, ConnectionStatus>>({
     outlook: "loading",
     slack: "loading",
@@ -261,6 +380,7 @@ export function ConnectionsView() {
       capabilities: ["@mentions → tasks", "DMs → tasks", "AI draft replies", "Thread context"],
       provider: "slack",
       connectAction: () => { window.location.href = "/api/slack/connect"; },
+      onTest: integrations.slack === "connected" ? () => setShowSlackDebug(true) : undefined,
     },
     {
       id: "granola",
@@ -286,6 +406,7 @@ export function ConnectionsView() {
 
   return (
     <div className="w-full h-full flex flex-col" style={{ background: tokens.bg0, color: tokens.fg0 }}>
+      {showSlackDebug && <SlackDebugModal onClose={() => setShowSlackDebug(false)} />}
       <TopBar view="Stream" onView={() => router.push("/")} />
 
       <div className="flex flex-1 min-h-0">
