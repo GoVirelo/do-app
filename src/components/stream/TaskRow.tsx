@@ -10,6 +10,83 @@ import { Sparkle } from "@/components/ui/Sparkle";
 import { cn } from "@/lib/utils";
 import { tokens } from "@/lib/tokens";
 import type { Task, Source } from "@/types";
+import type { SlackContextMessage } from "@/app/api/slack/context/route";
+
+// ── Slack thread context panel ─────────────────────────────────────────────────
+function SlackThreadPanel({ taskId }: { taskId: string }) {
+  const [messages, setMessages] = useState<SlackContextMessage[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/slack/context?taskId=${taskId}`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.error) setError(data.error);
+        else setMessages(data.messages ?? []);
+      })
+      .catch(() => setError("Failed to load thread"))
+      .finally(() => setLoading(false));
+  }, [taskId]);
+
+  return (
+    <div
+      className="mt-2 rounded-r2 overflow-hidden"
+      style={{ background: tokens.bg1, border: `1px solid ${tokens.line}` }}
+    >
+      {/* Thread header */}
+      <div
+        className="px-3 py-1.5 flex items-center gap-1.5"
+        style={{ background: tokens.bg2, borderBottom: `1px solid ${tokens.line}` }}
+      >
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: tokens.fg3 }}>
+          <path d="M14 2H2a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h3l3 3 3-3h3a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1z"/>
+        </svg>
+        <span className="font-mono-do text-[10px] uppercase tracking-[0.06em]" style={{ color: tokens.fg3 }}>
+          Thread context
+        </span>
+      </div>
+
+      {loading && (
+        <div className="px-3 py-2.5 text-[11.5px]" style={{ color: tokens.fg3 }}>Loading thread…</div>
+      )}
+      {error && (
+        <div className="px-3 py-2.5 text-[11.5px]" style={{ color: tokens.oxblood }}>{error}</div>
+      )}
+      {messages && messages.length === 0 && (
+        <div className="px-3 py-2.5 text-[11.5px]" style={{ color: tokens.fg3 }}>No messages found</div>
+      )}
+      {messages && messages.map((m, i) => (
+        <div
+          key={m.ts}
+          className="px-3 py-2"
+          style={{
+            background: m.isTarget ? tokens.bronzeSoft : "transparent",
+            borderTop: i > 0 ? `1px solid ${tokens.line}` : "none",
+            borderLeft: m.isTarget ? `2px solid ${tokens.bronze}` : "2px solid transparent",
+          }}
+        >
+          <div className="flex items-baseline gap-1.5 mb-0.5">
+            <span className="text-[11px] font-semibold" style={{ color: m.isTarget ? tokens.bronze : tokens.fg1 }}>
+              {m.username}
+            </span>
+            <span className="font-mono-do text-[9.5px]" style={{ color: tokens.fg3 }}>
+              {new Date(parseFloat(m.ts) * 1000).toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
+            </span>
+            {m.isTarget && (
+              <span className="font-mono-do text-[9px] px-1 rounded" style={{ background: tokens.bronzeLine, color: tokens.bronze }}>
+                this message
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] leading-snug" style={{ color: m.isTarget ? tokens.fg0 : tokens.fg2 }}>
+            {m.text}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
 
 // Module-level ref avoids dataTransfer key compatibility issues across browsers
 let _draggingTaskId = "";
@@ -128,6 +205,7 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
     });
     qcRow.invalidateQueries({ queryKey: ["tasks"] });
   }
+  const [showThread, setShowThread] = useState(false);
   const draft = task.aiDraft;
   const showDraft = draft && draft.state === "proposed";
   const isSlack = task.source === "slack";
@@ -174,6 +252,19 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
             {task.title}
           </span>
           <SourceBadge kind={task.source} onChange={handleSourceChange} />
+          {isSlack && !done && (
+            <button
+              onClick={() => setShowThread(v => !v)}
+              className="font-mono-do text-[10px] px-1.5 py-0.5 rounded transition-colors"
+              style={{
+                color: showThread ? tokens.bronze : tokens.fg3,
+                background: showThread ? tokens.bronzeSoft : "transparent",
+                border: `1px solid ${showThread ? tokens.bronzeLine : tokens.line}`,
+              }}
+            >
+              {showThread ? "Hide thread" : "View thread"}
+            </button>
+          )}
         </div>
 
         {task.meta && (
@@ -224,6 +315,8 @@ export function TaskRow({ task, onToggle, onSkipDraft, onSendDraft }: Props) {
             {isSlack ? "REPLIED IN SLACK" : `SENT VIA ${task.source.toUpperCase()}`} · {new Date().toLocaleTimeString("en-AU", { hour: "2-digit", minute: "2-digit" })}
           </div>
         )}
+
+        {isSlack && showThread && <SlackThreadPanel taskId={task.id} />}
       </div>
 
       {/* Schedule pill — always visible, not just on hover */}
