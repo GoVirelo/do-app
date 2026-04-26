@@ -18,7 +18,34 @@ export interface SlackMessage {
   username: string;
   ts: string;
   threadTs?: string;
+  isThread: boolean; // true = actual Slack thread, false = DM/channel message
   isMention: boolean;
+}
+
+// ── Actionability filter ──────────────────────────────────────────────────────
+// Returns true if a message is likely to need a response/action.
+// We skip one-word acks, pure emoji, and other non-actionable noise.
+
+const ACK_PATTERNS = [
+  /^(yes|no|ok|okay|yep|nope|yup|nah|sure|fine|great|perfect|awesome|cool|noted|got\s*it|makes\s*sense|sounds\s*good|will\s*do|done|thanks|thank\s*you|cheers|thx|ty|np|no\s*worries|no\s*problem|👍|✅|🙏|👌|💯|🔥)[\s!.]*$/i,
+];
+
+const PURE_EMOJI_RE = /^[\p{Emoji}\s]+$/u;
+
+export function isActionable(text: string): boolean {
+  const trimmed = text.trim();
+
+  // Too short (< 3 words) and no question mark → not actionable
+  const wordCount = trimmed.split(/\s+/).filter(Boolean).length;
+  if (wordCount < 3 && !trimmed.includes("?")) return false;
+
+  // Common acknowledgments
+  if (ACK_PATTERNS.some(p => p.test(trimmed))) return false;
+
+  // Pure emoji
+  if (PURE_EMOJI_RE.test(trimmed)) return false;
+
+  return true;
 }
 
 // Resolve a Slack user ID to a display name
@@ -41,9 +68,9 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
   const messages: SlackMessage[] = [];
   const seen = new Set<string>();
 
-  // ── 1. DMs (read + unread from others in last 7 days) ────────────────────────
+  // ── 1. DMs ───────────────────────────────────────────────────────────────────
   try {
-    const dms = await slack.conversations.list({ types: "im,mpim", limit: 50 });
+    const dms = await slack.conversations.list({ types: "im,mpim", limit: 200, exclude_archived: true });
     for (const channel of dms.channels ?? []) {
       if (!channel.id) continue;
       try {
@@ -56,13 +83,20 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
         for (const msg of history.messages ?? []) {
           if (!msg.text || !msg.ts) continue;
           if (msg.subtype === "bot_message") continue;
-          if (msg.user === mySlackId) continue; // skip own messages
+          if (msg.user === mySlackId) continue;
+
+          // Skip non-actionable noise
+          if (!isActionable(msg.text)) {
+            console.log(`[slack] skipping non-actionable DM: "${msg.text.slice(0, 40)}"`);
+            continue;
+          }
 
           const id = `${channel.id}-${msg.ts}`;
           if (seen.has(id)) continue;
           seen.add(id);
 
           const username = await resolveUsername(slack, msg.user!);
+          const isThread = !!(msg.thread_ts && msg.thread_ts !== msg.ts);
 
           messages.push({
             id,
@@ -72,7 +106,10 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
             userId: msg.user ?? "",
             username,
             ts: msg.ts,
-            threadTs: msg.thread_ts ?? msg.ts,
+            // For real threads, store parent ts so replies loads correctly.
+            // For plain DMs, store the message ts so history context works.
+            threadTs: isThread ? msg.thread_ts! : msg.ts,
+            isThread,
             isMention: false,
           });
         }
@@ -81,7 +118,6 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
   } catch { /* DM list failed */ }
 
   // ── 2. Channel @mentions via search ─────────────────────────────────────────
-  // Uses search:read scope to find messages where the user is mentioned
   try {
     const searchResult = await (slack as any).search.messages({
       query: `<@${mySlackId}>`,
@@ -93,18 +129,16 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
     const matches = searchResult?.messages?.matches ?? [];
     for (const match of matches) {
       if (!match.ts || !match.channel?.id) continue;
-
-      // Skip if too old
       if (parseFloat(match.ts) * 1000 < Date.now() - 7 * 24 * 60 * 60 * 1000) continue;
-
-      // Skip if it's the user's own message
       if (match.user === mySlackId || match.username === authInfo.user) continue;
+      if (!isActionable(match.text ?? "")) continue;
 
       const id = `${match.channel.id}-${match.ts}`;
       if (seen.has(id)) continue;
       seen.add(id);
 
       const username = match.username || (match.user ? await resolveUsername(slack, match.user) : "unknown");
+      const isThread = !!(match.thread_ts && match.thread_ts !== match.ts);
 
       messages.push({
         id,
@@ -114,25 +148,19 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
         userId: match.user ?? "",
         username,
         ts: match.ts,
-        threadTs: match.ts,
+        threadTs: isThread ? match.thread_ts : match.ts,
+        isThread,
         isMention: true,
       });
     }
   } catch (e: any) {
-    // search:read not granted yet — log but don't fail the whole sync
     console.warn("[slack] search.messages failed (may need search:read scope):", e.message);
   }
 
-  // ── 3. Threads I'm in (replies waiting) ─────────────────────────────────────
-  // If the user was mentioned in a thread reply, the search above catches it.
-  // Additionally check recent channel messages for thread replies to the user.
-  // (This covers cases where someone replies in a thread but doesn't @mention)
-
-  console.log(`[slack] fetchActionableMessages: ${messages.length} messages (${messages.filter(m => !m.isMention).length} DMs, ${messages.filter(m => m.isMention).length} mentions)`);
+  console.log(`[slack] ${messages.length} actionable messages (${messages.filter(m => !m.isMention).length} DMs, ${messages.filter(m => m.isMention).length} mentions)`);
   return messages;
 }
 
-// Keep old export name for backward compat
 export const fetchMentions = fetchActionableMessages;
 
 export async function postMessage(

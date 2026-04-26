@@ -90,8 +90,8 @@ export async function POST(req: Request) {
         });
         if (exists) continue;
 
-        // Store channelId + threadTs as JSON so we can reply later
-        const slackMeta = JSON.stringify({ channelId: msg.channelId, threadTs: msg.threadTs ?? msg.ts });
+        // Store channelId + threadTs + isThread as JSON so context endpoint knows how to load history
+        const slackMeta = JSON.stringify({ channelId: msg.channelId, threadTs: msg.threadTs ?? msg.ts, ts: msg.ts, isThread: msg.isThread ?? false });
         const channelDisplay = msg.isMention ? msg.channelName : "DM";
         // Relative time string (e.g. "2h ago")
         const tsMs = parseFloat(msg.ts) * 1000;
