@@ -13,6 +13,7 @@ import { TimelineBlock } from "./TimelineBlock";
 import { tokens } from "@/lib/tokens";
 import { useAppTasks } from "@/hooks/useAppTasks";
 import { useMeetings, useUpdateTask } from "@/hooks/useTasks";
+import { useQueryClient } from "@tanstack/react-query";
 import type { Task } from "@/types";
 import type { ApiMeeting } from "@/hooks/useTasks";
 
@@ -245,6 +246,7 @@ export function DayView({ onViewChange }: Props) {
   const { tasks } = useAppTasks();
   const { data: meetings = [] } = useMeetings();
   const updateTask = useUpdateTask();
+  const qc = useQueryClient();
   const [planning, setPlanning] = useState(false);
   const [planned, setPlanned] = useState(false);
 
@@ -308,6 +310,7 @@ Use the update_task tool to set scheduledStart and scheduledEnd for each task. F
         }),
       });
       setPlanned(true);
+      qc.invalidateQueries({ queryKey: ["tasks"] });
     } catch { /* silent */ }
     finally { setPlanning(false); }
   }
