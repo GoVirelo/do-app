@@ -9,13 +9,15 @@ export async function GET() {
     client_id: process.env.SLACK_CLIENT_ID!,
     // User token scopes — DMs + channel mentions + search + replies
     user_scope: [
-      "im:history",        // DM messages
-      "mpim:history",      // Group DM messages
-      "channels:history",  // Public channel messages (for mentions)
-      "groups:history",    // Private channel messages
-      "channels:read",     // List channels
+      "im:read",           // List DM channels
+      "im:history",        // Read DM messages
+      "mpim:read",         // List group DM channels
+      "mpim:history",      // Read group DM messages
+      "channels:read",     // List public channels
+      "channels:history",  // Read public channel messages (for mentions)
       "groups:read",       // List private channels
-      "search:read",       // Search for @mentions across workspace
+      "groups:history",    // Read private channel messages
+      "search:read",       // Search @mentions across workspace
       "users:read",        // Resolve display names
       "chat:write",        // Post replies
     ].join(" "),

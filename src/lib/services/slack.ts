@@ -37,11 +37,11 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
   const authInfo = await slack.auth.test();
   const mySlackId = authInfo.user_id ?? "";
 
-  const threeDaysAgo = (Date.now() / 1000 - 3 * 24 * 60 * 60).toString();
+  const sevenDaysAgo = (Date.now() / 1000 - 7 * 24 * 60 * 60).toString();
   const messages: SlackMessage[] = [];
   const seen = new Set<string>();
 
-  // ── 1. Unread DMs ────────────────────────────────────────────────────────────
+  // ── 1. DMs (read + unread from others in last 7 days) ────────────────────────
   try {
     const dms = await slack.conversations.list({ types: "im,mpim", limit: 50 });
     for (const channel of dms.channels ?? []) {
@@ -49,8 +49,8 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
       try {
         const history = await slack.conversations.history({
           channel: channel.id,
-          oldest: threeDaysAgo,
-          limit: 20,
+          oldest: sevenDaysAgo,
+          limit: 30,
         });
 
         for (const msg of history.messages ?? []) {
@@ -95,7 +95,7 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
       if (!match.ts || !match.channel?.id) continue;
 
       // Skip if too old
-      if (parseFloat(match.ts) * 1000 < Date.now() - 3 * 24 * 60 * 60 * 1000) continue;
+      if (parseFloat(match.ts) * 1000 < Date.now() - 7 * 24 * 60 * 60 * 1000) continue;
 
       // Skip if it's the user's own message
       if (match.user === mySlackId || match.username === authInfo.user) continue;
