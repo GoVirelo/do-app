@@ -7,8 +7,19 @@ export async function GET() {
 
   const params = new URLSearchParams({
     client_id: process.env.SLACK_CLIENT_ID!,
-    user_scope: "im:history im:write chat:write",
-    scope: "",
+    // User token scopes — DMs + channel mentions + search + replies
+    user_scope: [
+      "im:history",        // DM messages
+      "mpim:history",      // Group DM messages
+      "channels:history",  // Public channel messages (for mentions)
+      "groups:history",    // Private channel messages
+      "channels:read",     // List channels
+      "groups:read",       // List private channels
+      "search:read",       // Search for @mentions across workspace
+      "users:read",        // Resolve display names
+      "chat:write",        // Post replies
+    ].join(" "),
+    scope: "",             // Bot scope unused — we use user tokens
     redirect_uri: `${process.env.NEXTAUTH_URL}/api/slack/callback`,
   });
 

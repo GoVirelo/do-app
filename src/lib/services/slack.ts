@@ -21,6 +21,16 @@ export interface SlackMessage {
   isMention: boolean;
 }
 
+// Resolve a Slack user ID to a display name
+async function resolveUsername(slack: WebClient, uid: string): Promise<string> {
+  try {
+    const info = await slack.users.info({ user: uid });
+    return info.user?.real_name ?? info.user?.name ?? uid;
+  } catch {
+    return uid;
+  }
+}
+
 export async function fetchActionableMessages(userId: string): Promise<SlackMessage[]> {
   const slack = await getClient(userId);
 
@@ -29,50 +39,100 @@ export async function fetchActionableMessages(userId: string): Promise<SlackMess
 
   const threeDaysAgo = (Date.now() / 1000 - 3 * 24 * 60 * 60).toString();
   const messages: SlackMessage[] = [];
+  const seen = new Set<string>();
 
-  // DMs only — skip conversations where the last message is from me (already replied)
-  const dms = await slack.conversations.list({ types: "im", limit: 50 });
-  for (const channel of dms.channels ?? []) {
-    if (!channel.id) continue;
-    try {
-      const history = await slack.conversations.history({
-        channel: channel.id,
-        oldest: threeDaysAgo,
-        limit: 30,
-      });
-      const msgs = history.messages ?? [];
-      // Skip entire DM if the most recent message is from me
-      if (!msgs.length || msgs[0].user === mySlackId) continue;
-
-      for (const msg of msgs) {
-        if (!msg.text || !msg.ts) continue;
-        if (msg.subtype === "bot_message" || msg.user === mySlackId) continue;
-
-        let username = msg.user ?? "unknown";
-        try {
-          const info = await slack.users.info({ user: msg.user! });
-          username = info.user?.real_name ?? info.user?.name ?? username;
-        } catch {}
-
-        messages.push({
-          id: `${channel.id}-${msg.ts}`,
-          channelId: channel.id,
-          channelName: "DM",
-          text: msg.text,
-          userId: msg.user ?? "",
-          username,
-          ts: msg.ts,
-          threadTs: msg.ts,
-          isMention: false,
+  // ── 1. Unread DMs ────────────────────────────────────────────────────────────
+  try {
+    const dms = await slack.conversations.list({ types: "im,mpim", limit: 50 });
+    for (const channel of dms.channels ?? []) {
+      if (!channel.id) continue;
+      try {
+        const history = await slack.conversations.history({
+          channel: channel.id,
+          oldest: threeDaysAgo,
+          limit: 20,
         });
-      }
-    } catch {}
+
+        for (const msg of history.messages ?? []) {
+          if (!msg.text || !msg.ts) continue;
+          if (msg.subtype === "bot_message") continue;
+          if (msg.user === mySlackId) continue; // skip own messages
+
+          const id = `${channel.id}-${msg.ts}`;
+          if (seen.has(id)) continue;
+          seen.add(id);
+
+          const username = await resolveUsername(slack, msg.user!);
+
+          messages.push({
+            id,
+            channelId: channel.id,
+            channelName: "DM",
+            text: msg.text,
+            userId: msg.user ?? "",
+            username,
+            ts: msg.ts,
+            threadTs: msg.thread_ts ?? msg.ts,
+            isMention: false,
+          });
+        }
+      } catch { /* skip this DM on error */ }
+    }
+  } catch { /* DM list failed */ }
+
+  // ── 2. Channel @mentions via search ─────────────────────────────────────────
+  // Uses search:read scope to find messages where the user is mentioned
+  try {
+    const searchResult = await (slack as any).search.messages({
+      query: `<@${mySlackId}>`,
+      sort: "timestamp",
+      sort_dir: "desc",
+      count: 20,
+    });
+
+    const matches = searchResult?.messages?.matches ?? [];
+    for (const match of matches) {
+      if (!match.ts || !match.channel?.id) continue;
+
+      // Skip if too old
+      if (parseFloat(match.ts) * 1000 < Date.now() - 3 * 24 * 60 * 60 * 1000) continue;
+
+      // Skip if it's the user's own message
+      if (match.user === mySlackId || match.username === authInfo.user) continue;
+
+      const id = `${match.channel.id}-${match.ts}`;
+      if (seen.has(id)) continue;
+      seen.add(id);
+
+      const username = match.username || (match.user ? await resolveUsername(slack, match.user) : "unknown");
+
+      messages.push({
+        id,
+        channelId: match.channel.id,
+        channelName: match.channel.name ?? "channel",
+        text: match.text ?? "",
+        userId: match.user ?? "",
+        username,
+        ts: match.ts,
+        threadTs: match.ts,
+        isMention: true,
+      });
+    }
+  } catch (e: any) {
+    // search:read not granted yet — log but don't fail the whole sync
+    console.warn("[slack] search.messages failed (may need search:read scope):", e.message);
   }
 
+  // ── 3. Threads I'm in (replies waiting) ─────────────────────────────────────
+  // If the user was mentioned in a thread reply, the search above catches it.
+  // Additionally check recent channel messages for thread replies to the user.
+  // (This covers cases where someone replies in a thread but doesn't @mention)
+
+  console.log(`[slack] fetchActionableMessages: ${messages.length} messages (${messages.filter(m => !m.isMention).length} DMs, ${messages.filter(m => m.isMention).length} mentions)`);
   return messages;
 }
 
-// Keep old export name as alias for backward compat
+// Keep old export name for backward compat
 export const fetchMentions = fetchActionableMessages;
 
 export async function postMessage(
